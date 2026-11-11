@@ -35,7 +35,12 @@ def emit_pojo(package: str, class_name: str, fields: list[dict], evidence: str) 
 
 
 def emit_store(package: str, class_name: str, model_class: str, operation: str,
-               assumption: str) -> str:
+               assumption: str, param: str | None = None, is_list: bool = False) -> str:
+    """Test-double service. `param` names the saved argument (default: the
+    model class in lowerCamel); `is_list` makes it a List of the model."""
+    param = param or model_class[0].lower() + model_class[1:]
+    payload = f"List<{model_class}>" if is_list else model_class
+    field = "records" if is_list else "registration"
     return f'''package {package}.service;
 
 import java.util.List;
@@ -50,13 +55,13 @@ import {package}.model.{model_class};
 @ApplicationScoped
 public class {class_name} {{
 
-    public record SaveCall({model_class} registration) {{}}
+    public record SaveCall({payload} {field}) {{}}
 
     private static final List<SaveCall> SAVES = new CopyOnWriteArrayList<>();
 
-    public {model_class} {operation}({model_class} projectRegistration) {{
-        SAVES.add(new SaveCall(projectRegistration));
-        return projectRegistration;
+    public {payload} {operation}({payload} {param}) {{
+        SAVES.add(new SaveCall({param}));
+        return {param};
     }}
 
     public static List<SaveCall> saves() {{
