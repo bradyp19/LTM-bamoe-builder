@@ -31,14 +31,37 @@ def _tag(node_type: str) -> str:
     return GATEWAY_TAG[node_type]
 
 
+# Node documentation is persisted in a VARCHAR(255) column (definitions_nodes_metadata).
+NODE_DOC_LIMIT = 255
+OVERFLOW_MARK = " … (full text in process documentation)"
+
+
+def _node_doc(node_id: str, doc: str, overflow: list[str]) -> str:
+    """The node's documentation, cut to the column limit; the full text then goes to
+    `overflow` for the process-level documentation so nothing is lost."""
+    if len(doc) <= NODE_DOC_LIMIT:
+        return doc
+    overflow.append(f"[{node_id}] {doc}")
+    return doc[:NODE_DOC_LIMIT - len(OVERFLOW_MARK)].rstrip() + OVERFLOW_MARK
+
+
 def _item_id(var: str) -> str:
     return f"_{var}Item"
+
+
+def _raw_item_id(var: str) -> str:
+    """Item definition without generics, for Java method arguments (service tasks)."""
+    return f"_{var}RawItem"
+
+
+def _method_item(var: str, var_types: dict) -> str:
+    return _raw_item_id(var) if var_types[var].get("elementType") else _item_id(var)
 
 
 def emit_bpmn(spec: dict) -> str:
     p = spec["process"]
     nodes = {n["id"]: n for n in spec["nodes"]}
-    var_types = {v["name"]: v["type"] for v in spec["variables"]}
+    var_types = {v["name"]: v for v in spec["variables"]}
 
     parts = [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -59,14 +82,19 @@ def emit_bpmn(spec: dict) -> str:
 
     # item definitions + service interfaces/messages
     for v in spec["variables"]:
+        # Kogito reads a collection's element type from the generic in structureRef
+        ref = f'{v["type"]}<{v["elementType"]}>' if v.get("elementType") else v["type"]
         parts.append(f'  <bpmn2:itemDefinition id="{_item_id(v["name"])}" '
-                     f'structureRef="{v["type"]}"/>')
+                     f'structureRef={quoteattr(ref)}/>')
+        if v.get("elementType"):
+            parts.append(f'  <bpmn2:itemDefinition id="{_raw_item_id(v["name"])}" '
+                         f'structureRef="{v["type"]}"/>')
     for n in spec["nodes"]:
         if n["type"] == "serviceTask":
             svc = n["service"]
             parts += [
-                f'  <bpmn2:message id="_{n["id"]}InMessage" itemRef="{_item_id(n["inputs"][0])}"/>',
-                f'  <bpmn2:message id="_{n["id"]}OutMessage" itemRef="{_item_id(n["outputs"][0])}"/>',
+                f'  <bpmn2:message id="_{n["id"]}InMessage" itemRef="{_method_item(n["inputs"][0], var_types)}"/>',
+                f'  <bpmn2:message id="_{n["id"]}OutMessage" itemRef="{_method_item(n["outputs"][0], var_types)}"/>',
                 f'  <bpmn2:interface id="_{n["id"]}Interface" name="{svc["class"].split(".")[-1]}" '
                 f'implementationRef="{svc["class"]}">',
                 f'    <bpmn2:operation id="_{n["id"]}Operation" name="{svc["operation"]}" '
@@ -87,9 +115,13 @@ def emit_bpmn(spec: dict) -> str:
 
     parts.append(f'  <bpmn2:process id="{p["id"]}" tns:packageName="{p["packageName"]}" '
                  f'name={quoteattr(p["name"])} isExecutable="true" processType="Public">')
-    if spec.get("assumptions"):
-        doc = " / ".join(f'{a["id"]}: {a["text"]}' for a in spec["assumptions"])
-        parts.append(f'    <bpmn2:documentation>Open items and assumptions — {escape(doc)}</bpmn2:documentation>')
+    overflow: list[str] = []
+    node_docs = {n["id"]: _node_doc(n["id"], n["doc"], overflow) for n in spec["nodes"] if n.get("doc")}
+    doc_items = ([f'{a["id"]}: {a["text"]}' for a in spec.get("assumptions", [])]
+                 + [f"Node documentation {o}" for o in overflow])
+    if doc_items:
+        label = "Open items and assumptions" if spec.get("assumptions") else "Node documentation"
+        parts.append(f'    <bpmn2:documentation>{label} — {escape(" / ".join(doc_items))}</bpmn2:documentation>')
     for v in spec["variables"]:
         parts.append(f'    <bpmn2:property id="{v["name"]}" itemSubjectRef="{_item_id(v["name"])}"/>')
     parts.append("")
@@ -104,7 +136,8 @@ def emit_bpmn(spec: dict) -> str:
                       for f in incoming.get(n["id"], []))
         out = "".join(f"\n      <bpmn2:outgoing>{flow_ids[id(f)]}</bpmn2:outgoing>"
                       for f in outgoing.get(n["id"], []))
-        doc = f'\n      <bpmn2:documentation>{escape(n["doc"])}</bpmn2:documentation>' if n.get("doc") else ""
+        doc = (f'\n      <bpmn2:documentation>{escape(node_docs[n["id"]])}</bpmn2:documentation>'
+               if n["id"] in node_docs else "")
 
         if n["type"] in TASK_TAGS:
             svc_attr = ""
@@ -115,12 +148,14 @@ def emit_bpmn(spec: dict) -> str:
             parts.append('      <bpmn2:ioSpecification>')
             for i, var in enumerate(n.get("inputs", [])):
                 pname = "Parameter" if n["type"] == "serviceTask" and i == 0 else var
+                item = _method_item(var, var_types) if n["type"] == "serviceTask" else _item_id(var)
                 parts.append(f'        <bpmn2:dataInput id="_{n["id"]}_in_{i}" name="{pname}" '
-                             f'itemSubjectRef="{_item_id(var)}"/>')
+                             f'itemSubjectRef="{item}"/>')
             for i, var in enumerate(n.get("outputs", [])):
                 pname = "Result" if n["type"] == "serviceTask" else var
+                item = _method_item(var, var_types) if n["type"] == "serviceTask" else _item_id(var)
                 parts.append(f'        <bpmn2:dataOutput id="_{n["id"]}_out_{i}" name="{pname}" '
-                             f'itemSubjectRef="{_item_id(var)}"/>')
+                             f'itemSubjectRef="{item}"/>')
             parts.append('        <bpmn2:inputSet>')
             for i in range(len(n.get("inputs", []))):
                 parts.append(f'          <bpmn2:dataInputRefs>_{n["id"]}_in_{i}</bpmn2:dataInputRefs>')
@@ -142,8 +177,10 @@ def emit_bpmn(spec: dict) -> str:
                 parts.append('      </bpmn2:dataOutputAssociation>')
             parts.append(f'    </bpmn2:{tag}>')
         elif n["type"] == "xor":
+            converging = len(incoming.get(n["id"], [])) > 1 and len(outgoing.get(n["id"], [])) == 1
+            direction = "Converging" if converging else "Diverging"
             parts.append(f'    <bpmn2:{tag} id="{n["id"]}" name={quoteattr(n["name"])} '
-                         f'gatewayDirection="Diverging">{doc}{inc}{out}')
+                         f'gatewayDirection="{direction}">{doc}{inc}{out}')
             parts.append(f'    </bpmn2:{tag}>')
         else:
             parts.append(f'    <bpmn2:{tag} id="{n["id"]}" name={quoteattr(n["name"])}>{doc}{inc}{out}')

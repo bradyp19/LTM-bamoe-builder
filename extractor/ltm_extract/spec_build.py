@@ -11,7 +11,8 @@ Transformations applied to a text diagram, each disclosed in the spec's
 assumptions as T-n:
 - a node with several outgoing branches gets an exclusive gateway, because the
   spec carries conditions on gateway flows;
-- branches from one node to the same target become one flow.
+- branches from one node to the same target become one flow;
+- a task reached by several flows gets a converging exclusive gateway in front of it.
 A null flag is treated as not true on both sides of a condition.
 """
 
@@ -293,7 +294,33 @@ class _Builder:
                 linked.add(e.source)
                 out_edges.append(_Edge(e.source, gateway.id, [None]))
             out_edges.append(_Edge(gateway.id, e.target, e.labels, e.paragraphs))
+
         return out_nodes, out_edges, pf.flow.anchor.cite()
+
+    def add_merge_gateways(self, nodes: list[_Node], edges: list[_Edge]) -> None:
+        """BAMOE rejects a task with several incoming flows, so they enter through
+        a converging exclusive gateway placed just before it. Mutates both lists."""
+        by_id = {n.id: n for n in nodes}
+        for n in list(nodes):
+            if n.type in ("start", "end", "xor"):
+                continue
+            entering = [e for e in edges if e.target == n.id]
+            if len(entering) < 2:
+                continue
+            merge = _Node(
+                id=f"{n.id}Merge", type="xor", name=f"Before {n.name}",
+                fixed_doc=(f"SYNTHESIZED: not a documented node. {len(entering)} flows reach "
+                           f"'{n.name}'; this converging exclusive gateway merges them."))
+            nodes.insert(nodes.index(n), merge)
+            for e in entering:
+                e.target = merge.id
+            edges.append(_Edge(merge.id, n.id, [None]))
+            sources = ", ".join(f"'{by_id[e.source].name}'" for e in entering)
+            text = (f"Merge gateway '{merge.name}' is synthesized: {len(entering)} flows "
+                    f"(from {sources}) reach '{n.name}' and no merge gateway is documented; "
+                    "BAMOE does not accept several incoming flows on a task.")
+            self.transformations["join"].append(text)
+            self.note("merge-gateway-synthesized", text)
 
     def check_structure(self, nodes: list[_Node], edges: list[_Edge]) -> None:
         ids = [n.id for n in nodes]
@@ -329,12 +356,6 @@ class _Builder:
                 self.problem(f"node '{n.id}' has no outgoing flow")
             if n.type != "xor" and len(outgoing[n.id]) > 1:
                 self.problem(f"node '{n.id}' branches but is not a gateway")
-            if n.type != "xor" and len(incoming[n.id]) > 1:
-                sources = ", ".join(f"'{s}'" for s in incoming[n.id])
-                text = (f"'{n.name}' has {len(incoming[n.id])} incoming flows (from {sources}); "
-                        "no merge gateway is documented and none is emitted.")
-                self.transformations["join"].append(text)
-                self.note("implicit-join", text)
 
     # -- build -------------------------------------------------------------
 
@@ -452,6 +473,7 @@ class _Builder:
                 self.problem(f"design.nodes.{n.id}.type must be one of {sorted(TASK_TYPES)}")
             else:
                 n.type = d["type"]
+        self.add_merge_gateways(nodes, edges)
         before = len(self.problems)
         self.check_structure(nodes, edges)
         if len(self.problems) > before:
@@ -571,16 +593,35 @@ class _Builder:
         tests = self.supplement.get("tests", [])
         record_vars = {v["name"]: v["type"].split(".")[-1] for v in variables
                        if ".model." in v["type"]}
+        list_vars = {v["name"]: v["elementType"].split(".")[-1] for v in variables
+                     if v["type"] == "java.util.List"}
+        user_tasks = {n["id"] for n in spec_nodes if n["type"] == "userTask"}
+
+        def check_values(label: str, values: dict) -> None:
+            for var, value in values.items():
+                if var not in var_names:
+                    self.problem(f"test {label}: '{var}' is not a declared process variable")
+                    continue
+                if var in record_vars and isinstance(value, dict):
+                    records = [(record_vars[var], value)]
+                elif var in list_vars and isinstance(value, list):
+                    records = [(list_vars[var], item) for item in value]
+                else:
+                    continue
+                for model, item in records:
+                    fields = {f["name"] for f in models.get(model, {}).get("fields", [])}
+                    for name_ in sorted(set(item) - fields):
+                        self.problem(f"test {label}: {model} has no field '{name_}'")
+
         for t in tests:
             label = t.get("name", "?")
             for phase in ("start", "complete"):
-                for var, value in t.get(phase, {}).items():
-                    if var not in var_names:
-                        self.problem(f"test {label}: '{var}' is not a declared process variable")
-                    elif var in record_vars and isinstance(value, dict):
-                        fields = {f["name"] for f in models.get(record_vars[var], {}).get("fields", [])}
-                        for name_ in sorted(set(value) - fields):
-                            self.problem(f"test {label}: {record_vars[var]} has no field '{name_}'")
+                check_values(label, t.get(phase, {}))
+            for i, step in enumerate(t.get("steps", []), 1):
+                if step.get("task") not in user_tasks:
+                    self.problem(f"test {label} step {i}: '{step.get('task')}' is not a user task "
+                                 f"(user tasks: {', '.join(sorted(user_tasks))})")
+                check_values(f"{label} step {i}", step.get("complete", {}))
 
         # assumptions: authored first, then the disclosed transformations
         assumptions = [{"id": a["id"], "text": a["text"]}

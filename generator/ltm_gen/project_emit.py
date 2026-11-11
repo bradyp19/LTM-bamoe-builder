@@ -35,6 +35,15 @@ def emit_project(spec: dict, skeleton_dir: Path, out_dir: Path) -> list[Path]:
     test_root = out_dir / "src/test/java" / Path(*pkg.split("."))
     res_root = out_dir / "src/main/resources"
 
+    # List variables are Java-serialized with their items; under Quarkus' split test
+    # classloader the item classes then cannot be resolved when an instance is reloaded.
+    if any(v.get("elementType") for v in spec["variables"]):
+        props = out_dir / "src/main/resources/application.properties"
+        props.write_text(props.read_text().rstrip("\n") + "\n\n"
+                         "# Generated: process variables hold lists of model classes, which are Java-serialized;\n"
+                         "# a flat test classpath lets deserialization find them.\n"
+                         "quarkus.test.flat-class-path=true\n")
+
     # BPMN
     bpmn_file = res_root / f"{spec['process']['id']}.bpmn"
     bpmn_file.write_text(emit_bpmn(spec))

@@ -1,7 +1,9 @@
 package nssol.model;
 
 // Generated. Evidence: D05 ¶48–76
-public class ProjectRegistration {
+public class ProjectRegistration implements java.io.Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private Integer projectId;
     private String projectName;
