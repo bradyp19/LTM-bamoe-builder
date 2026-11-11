@@ -187,6 +187,34 @@ class _Builder:
             if quote not in self.docset.text(doc, start, end):
                 self.problem(f"{cite(doc, start, end)} does not contain the quoted support {quote!r}")
 
+    def report_relevant_duplicates(self, duplicates: dict[str, list[str]], process: str,
+                                   ifaces: dict) -> None:
+        """A name documented twice is a problem only when this spec uses that name:
+        the process itself, or a record type / interface it refers to."""
+        used = {"process model": {process}, "record type": set(), "interface": set()}
+        pf = process_models(self.docset)[process]
+        for v in pf.variables:
+            for suffix in (" record", " list", ""):
+                if v.type.endswith(suffix) and v.type[:len(v.type) - len(suffix)]:
+                    used["record type"].add(v.type[:len(v.type) - len(suffix)])
+        if pf.flow.kind == "text":
+            used["interface"] |= {n.interface for n in parse_text_flow(pf.flow.lines).nodes
+                                  if n.interface}
+        for kind, messages in duplicates.items():
+            for message in messages:
+                if any(f"'{n}'" in message for n in used[kind]):
+                    self.problem(f"{message}; the document set is ambiguous")
+
+    def similar_headings(self, name: str) -> list[tuple[str, int, str]]:
+        """Headings that contain `name` (case-insensitive) but did not match any fact shape."""
+        wanted = name.casefold()
+        out = []
+        for doc in self.docset.documents:
+            for section in self.docset.sections(doc):
+                if wanted in section.title.casefold():
+                    out.append((doc, section.paragraph_index, section.title))
+        return out
+
     # -- flow --------------------------------------------------------------
 
     def transcribed_flow(self, pf: ProcessFacts):
@@ -365,14 +393,19 @@ class _Builder:
         self.check_citations()
 
         name = self.supplement["process"]
-        processes = process_models(self.docset)
+        duplicates: dict[str, list[str]] = {"process model": [], "record type": [], "interface": []}
+        processes = process_models(self.docset, duplicates["process model"])
         if name not in processes:
             self.problem(f"no process model '{name}' in the documents "
                          f"(found: {', '.join(processes) or 'none'})")
+            for doc, index, title in self.similar_headings(name):
+                self.problem(f"{cite(doc, index)} has a heading '{title}' that mentions "
+                             f"'{name}' but is not shaped 'Process Model: <name>'")
             self.fail_if_problems()
         pf = processes[name]
-        records = record_types(self.docset)
-        ifaces = interfaces(self.docset)
+        records = record_types(self.docset, duplicates["record type"])
+        ifaces = interfaces(self.docset, duplicates["interface"])
+        self.report_relevant_duplicates(duplicates, name, ifaces)
 
         prefix, rest = _split_prefix(name)
         process_design = self.design.get("process", {})

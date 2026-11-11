@@ -213,3 +213,56 @@ class TestDocSet:
     def test_empty_directory_is_an_error(self, tmp_path):
         with pytest.raises(ExtractionError, match="no LTM documents"):
             DocSet.load(tmp_path / "missing")
+
+
+class TestDuplicateNames:
+    """A name documented twice must be reported when the spec depends on it,
+    never resolved silently by whichever heading is read last."""
+
+    def test_duplicate_record_type_used_by_the_process_is_an_error(self, make_docx, docset):
+        make_docx("06_More_Data.docx", DATA)
+        ds = DocSet.load(make_docx("06_More_Data.docx", DATA).parent)
+        with pytest.raises(ExtractionError,
+                           match=r"record type 'ACME Orders' is documented more than once "
+                                 r"\(D05 ¶\d+–\d+ and D06 ¶\d+–\d+\)"):
+            build_spec(ds, approve_supplement())
+
+    def test_duplicate_interface_used_by_the_flow_is_an_error(self, make_docx, docset):
+        make_docx("06_More_Interfaces.docx", INTERFACES)
+        ds = DocSet.load(make_docx("06_More_Interfaces.docx", INTERFACES).parent)
+        with pytest.raises(ExtractionError,
+                           match="interface 'ACME_FRM_Review' is documented more than once"):
+            build_spec(ds, approve_supplement())
+
+    def test_duplicate_process_model_is_an_error(self, make_docx, docset):
+        make_docx("06_More_Workflow.docx", WORKFLOW, image_bytes=IMAGE_BYTES)
+        ds = DocSet.load(make_docx("06_More_Workflow.docx", WORKFLOW, image_bytes=IMAGE_BYTES).parent)
+        with pytest.raises(ExtractionError,
+                           match="process model 'ACME Approve Order' is documented more than once"):
+            build_spec(ds, approve_supplement())
+
+    def test_duplicate_name_the_spec_does_not_use_is_ignored(self, make_docx, docset):
+        extra = ["# Data Model", "", "## Record Type: ACME Unused", "",
+                 "### Fields", "", "| Field Name | Data Type | Nullable | Description |",
+                 "|---|---|---|---|", "| `a` | Integer | No | x |"]
+        make_docx("06_Extra_A.docx", extra)
+        ds = DocSet.load(make_docx("07_Extra_B.docx", extra).parent)
+        assert build_spec(ds, approve_supplement()).spec["process"]["id"] == "approveOrder"
+
+
+class TestHeadingNearMisses:
+    def test_missing_process_points_at_headings_that_mention_it(self, make_docx):
+        lines = ["# Workflow", "", "## Process: ACME Approve Order", "", "text"]
+        ds = DocSet.load(make_docx("03_Workflow.docx", lines).parent)
+        with pytest.raises(ExtractionError) as exc:
+            build_spec(ds, approve_supplement())
+        joined = " | ".join(exc.value.problems)
+        assert "no process model 'ACME Approve Order'" in joined
+        assert "D03 ¶2 has a heading 'Process: ACME Approve Order'" in joined
+        assert "not shaped 'Process Model: <name>'" in joined
+
+    def test_missing_process_with_no_similar_heading_adds_nothing(self, make_docx):
+        ds = DocSet.load(make_docx("03_Workflow.docx", ["# Workflow", "", "text"]).parent)
+        with pytest.raises(ExtractionError) as exc:
+            build_spec(ds, approve_supplement())
+        assert len(exc.value.problems) == 1

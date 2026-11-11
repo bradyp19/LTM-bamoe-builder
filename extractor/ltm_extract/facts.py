@@ -96,6 +96,17 @@ class InterfaceFacts:
     form_fields: list[FormFieldFact]
 
 
+def _register(out: dict, name: str, fact, kind: str, duplicates: list[str] | None) -> None:
+    """Store a fact by name. A second one with the same name is never silently
+    kept or dropped: it is reported through `duplicates` and the first one stays."""
+    if name in out:
+        if duplicates is not None:
+            duplicates.append(f"{kind} '{name}' is documented more than once "
+                              f"({out[name].anchor.cite()} and {fact.anchor.cite()})")
+        return
+    out[name] = fact
+
+
 def _clean(cell: str) -> str:
     return cell.strip().strip("*").strip("`").strip()
 
@@ -151,7 +162,7 @@ def _flow_source(doc: str, own: Section, children: list[Section],
     return FlowSource(kind="missing")
 
 
-def process_models(docset: DocSet) -> dict[str, ProcessFacts]:
+def process_models(docset: DocSet, duplicates: list[str] | None = None) -> dict[str, ProcessFacts]:
     out: dict[str, ProcessFacts] = {}
     for doc in docset.documents:
         for i, section in enumerate(docset.sections(doc)):
@@ -182,17 +193,17 @@ def process_models(docset: DocSet) -> dict[str, ProcessFacts]:
                         extra={h: v.strip() for h, v in row.items() if h not in known},
                         anchor=anchor))
 
-            out[m.group(1).strip()] = ProcessFacts(
+            _register(out, m.group(1).strip(), ProcessFacts(
                 name=m.group(1).strip(),
                 anchor=_content_anchor(doc, span),
                 attributes=attributes,
                 variables=variables,
                 variables_anchor=variables_anchor,
-                flow=_flow_source(doc, section, children, span))
+                flow=_flow_source(doc, section, children, span)), "process model", duplicates)
     return out
 
 
-def record_types(docset: DocSet) -> dict[str, RecordTypeFacts]:
+def record_types(docset: DocSet, duplicates: list[str] | None = None) -> dict[str, RecordTypeFacts]:
     out: dict[str, RecordTypeFacts] = {}
     for doc in docset.documents:
         for i, section in enumerate(docset.sections(doc)):
@@ -213,13 +224,14 @@ def record_types(docset: DocSet) -> dict[str, RecordTypeFacts]:
                         nullable=_clean(row.get("Nullable", "")).lower() == "yes",
                         description=row.get("Description", "").strip(),
                         anchor=anchor))
-            out[m.group(1).strip()] = RecordTypeFacts(
+            _register(out, m.group(1).strip(), RecordTypeFacts(
                 name=m.group(1).strip(), anchor=_content_anchor(doc, span),
-                primary_key=pk, fields=fields, fields_anchor=fields_anchor)
+                primary_key=pk, fields=fields, fields_anchor=fields_anchor),
+                "record type", duplicates)
     return out
 
 
-def interfaces(docset: DocSet) -> dict[str, InterfaceFacts]:
+def interfaces(docset: DocSet, duplicates: list[str] | None = None) -> dict[str, InterfaceFacts]:
     out: dict[str, InterfaceFacts] = {}
     for doc in docset.documents:
         for i, section in enumerate(docset.sections(doc)):
@@ -251,8 +263,8 @@ def interfaces(docset: DocSet) -> dict[str, InterfaceFacts]:
                             constraints=constraints,
                             required=constraints == "Required", anchor=anchor))
 
-            out[m.group(1)] = InterfaceFacts(
+            _register(out, m.group(1), InterfaceFacts(
                 name=m.group(1), anchor=_content_anchor(doc, docset.span(doc, i)),
                 rule_inputs=rule_inputs, rule_inputs_anchor=rule_inputs_anchor,
-                form_fields=form_fields)
+                form_fields=form_fields), "interface", duplicates)
     return out

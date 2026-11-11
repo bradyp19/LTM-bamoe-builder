@@ -39,7 +39,23 @@ Each one is added to the spec's assumptions as `T-n`:
 - A node with several outgoing branches gets an exclusive gateway
   (`<node>Gateway`), because the spec carries conditions on gateway flows.
 - Branches from one node to the same target become one flow without a condition.
-- Nodes with several incoming flows are reported; no merge gateway is emitted.
+- A task with several incoming flows gets a converging exclusive gateway
+  (`<node>Merge`) in front of it, because BAMOE rejects a task with more than
+  one incoming flow. This applies to image-transcribed flows too.
+
+## Ambiguity is an error
+
+- A process model, record type or interface documented twice is an error when
+  the spec uses that name (the first one is never silently kept).
+- If the named process model is not found, headings that mention it but are not
+  shaped `Process Model: <name>` are listed with their paragraph.
+
+## Test scenarios
+
+`tests` in the supplement are either single-task (`start` / `complete` /
+`expect`) or multi-step: `start`, `steps: [{task, complete}]` and
+`expect: {status, saves: {Store: n}, savedLists: {Store: size}}`. Tasks,
+variables and record fields are validated against the spec at extraction time.
 
 ## Modules
 
