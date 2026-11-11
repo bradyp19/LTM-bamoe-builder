@@ -1,0 +1,84 @@
+{
+  "process": "NSSOL Register Project",
+  "figureTranscriptions": [
+    {
+      "cite": "D03 ¶31",
+      "image": "media/image1.png",
+      "sha256": "7f851ee804945ce9f767a96a7e48159f5f6867f91c120ce516b609eb96f12d6a",
+      "inspected": "2026-11-09",
+      "nodes": [
+        {"id": "start", "type": "start", "name": "Start"},
+        {"id": "form", "type": "userTask", "name": "Fill Project Registration Form",
+         "interface": "NSSOL_FRM_ProjectRegistration",
+         "inputs": ["isUpdate", "projectRegistration"]},
+        {"id": "cancelGateway", "type": "xor", "name": "Cancel?"},
+        {"id": "saveRecord", "type": "serviceTask", "name": "Write / Save NSSOL Projects Record"},
+        {"id": "cancelled", "type": "end", "name": "Cancelled — no data written"},
+        {"id": "completed", "type": "end", "name": "Completed"}
+      ],
+      "flows": [
+        {"from": "start", "to": "form"},
+        {"from": "form", "to": "cancelGateway"},
+        {"from": "cancelGateway", "to": "cancelled", "label": "Yes / cancel=true"},
+        {"from": "cancelGateway", "to": "saveRecord", "label": "No / cancel=false"},
+        {"from": "saveRecord", "to": "completed"}
+      ]
+    }
+  ],
+  "design": {
+    "models": {"NSSOL Projects": "ProjectRegistration"},
+    "nodes": {
+      "start": {
+        "notes": "Record actions f2204bff (New, isUpdate=false) / 60ca774a (Edit, isUpdate=true). D03 ¶248–256.",
+        "support": [
+          {"cite": "D03 ¶252", "quote": "`f2204bff-28bb-4ea4-95e1-03f8f0784890` | New Project (toolbar button) | NSSOL Register Project (isUpdate=false)"},
+          {"cite": "D03 ¶253", "quote": "`60ca774a-e1d1-4e93-9424-c042270865e1` | Edit Project (row edit icon) | NSSOL Register Project (isUpdate=true)"}
+        ]
+      },
+      "form": {
+        "outputs": ["cancel", "projectRegistration"],
+        "notes": "C1 CONFLICT: D04 ¶353–358 documents a confirmation section not in Figure 1 — unresolved. ASSUMPTION: no documented assignee (SR-3); task left unassigned.",
+        "support": [
+          {"cite": "D04 ¶353–358", "quote": "Provides Back and Confirm buttons."},
+          {"cite": "D04 ¶77", "quote": "Submit triggers `a!save` to write back to `pv!projectRegistration`"},
+          {"cite": "D04 ¶78", "quote": "Cancel sets `pv!cancel = true`"}
+        ]
+      },
+      "saveRecord": {
+        "service": {"class": "nssol.service.ProjectStore", "operation": "save"},
+        "inputs": ["projectRegistration"],
+        "outputs": ["projectRegistration"],
+        "notes": "Create or update NSSOL_PROJECTS row (D03 Figure 1). SR-4: write semantics unspecified; ProjectStore is a test double."
+      }
+    }
+  },
+  "assumptions": [
+    {"id": "SR-3", "text": "No task assignee/candidate group documented; user task left unassigned."},
+    {"id": "SR-5", "text": "cancel=null treated as not-cancelled (no documented default)."},
+    {"id": "SR-4", "text": "ProjectStore is an in-memory test double; real write semantics unspecified."},
+    {"id": "C1", "text": "Model follows Figure 1: no confirmation node. D04 §14 confirmation section unresolved.",
+     "support": [
+       {"cite": "D04 ¶356", "quote": "Intermediate confirmation step after user fills the project registration form"}
+     ]},
+    {"id": "C2", "text": "Status requiredness unresolved (D03 ¶38 required vs D04 ¶48 unmarked vs D05 ¶59 nullable); no enforcement coded.",
+     "support": [
+       {"cite": "D03 ¶38", "quote": "Required fields enforced in the form: project name, order amount (million yen), expected order amount, status"},
+       {"cite": "D04 ¶48", "quote": "| Status | Dropdown | Values: NSSOL_LIST_TXT_STATUS (Completed, In-Progress) |"},
+       {"cite": "D05 ¶59", "quote": "| `status` | Text | Yes |"}
+     ]}
+  ],
+  "tests": [
+    {"name": "createProject_submitsAndSaves",
+     "start": {"isUpdate": false, "cancel": false, "projectRegistration": {"projectName": "Test Tower Construction", "status": "In-Progress", "isActive": true}},
+     "complete": {"cancel": false},
+     "expect": {"status": "COMPLETED", "saves": 1, "savedFields": {"projectName": "\"Test Tower Construction\"", "projectId": "null"}}},
+    {"name": "updateProject_submitsAndSaves",
+     "start": {"isUpdate": true, "cancel": false, "projectRegistration": {"projectId": 42, "projectName": "Test Tower Construction", "isActive": true}},
+     "complete": {"cancel": false},
+     "expect": {"status": "COMPLETED", "saves": 1, "savedFields": {"projectId": "42"}}},
+    {"name": "cancel_writesNothing",
+     "start": {"isUpdate": false, "cancel": false, "projectRegistration": {"projectName": "Test Tower Construction", "isActive": true}},
+     "complete": {"cancel": true},
+     "expect": {"status": "COMPLETED", "saves": 0}}
+  ]
+}

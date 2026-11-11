@@ -1,0 +1,93 @@
+{
+  "process": {
+    "id": "registerProject",
+    "name": "NSSOL Register Project",
+    "packageName": "nssol",
+    "evidence": "D03 Figure 1 (image-inspected 2026-11-09), D03 ¶24–28, D04 ¶24–79"
+  },
+  "models": {
+    "ProjectRegistration": {
+      "fields": [
+        {"name": "projectId", "type": "Integer"},
+        {"name": "projectName", "type": "String"},
+        {"name": "isActive", "type": "Boolean"},
+        {"name": "status", "type": "String"},
+        {"name": "startDate", "type": "java.time.LocalDate"},
+        {"name": "endDate", "type": "java.time.LocalDate"},
+        {"name": "orderDate", "type": "java.time.LocalDate"},
+        {"name": "statusChanged", "type": "java.time.LocalDate"},
+        {"name": "orderAmountMillionYen", "type": "java.math.BigDecimal"},
+        {"name": "expectedOrderAmount", "type": "java.math.BigDecimal"},
+        {"name": "orderFiscalYear", "type": "String"},
+        {"name": "probability", "type": "String"},
+        {"name": "projectCategory", "type": "String"},
+        {"name": "client", "type": "String"},
+        {"name": "inquirySource", "type": "String"},
+        {"name": "constructionSite", "type": "String"},
+        {"name": "buildingUsage", "type": "String"},
+        {"name": "headOffice", "type": "String"},
+        {"name": "branchOffice", "type": "String"},
+        {"name": "targetOrganization", "type": "String"},
+        {"name": "responsibleDepartment", "type": "String"},
+        {"name": "siteRepresentative", "type": "String"},
+        {"name": "specialNotes", "type": "String"},
+        {"name": "primeContractor", "type": "String"},
+        {"name": "completedProjects", "type": "Integer"},
+        {"name": "plannedHeadCount", "type": "Integer"},
+        {"name": "actualHeadcount", "type": "Integer"}
+      ],
+      "evidence": "D05 ¶48–76"
+    }
+  },
+  "variables": [
+    {"name": "cancel", "type": "java.lang.Boolean", "evidence": "D03 ¶26"},
+    {"name": "isUpdate", "type": "java.lang.Boolean", "evidence": "D03 ¶27"},
+    {"name": "projectRegistration", "type": "nssol.model.ProjectRegistration", "evidence": "D03 ¶28"}
+  ],
+  "nodes": [
+    {"id": "start", "type": "start", "name": "Start",
+     "doc": "Record actions f2204bff (New, isUpdate=false) / 60ca774a (Edit, isUpdate=true). D03 ¶248–256."},
+    {"id": "form", "type": "userTask", "name": "Fill Project Registration Form",
+     "doc": "Interface: NSSOL_FRM_ProjectRegistration (D04 ¶24–79). C1 CONFLICT: D04 ¶353–358 documents a confirmation section not in Figure 1 — unresolved. ASSUMPTION: no documented assignee (SR-3); task left unassigned.",
+     "inputs": ["isUpdate", "projectRegistration"],
+     "outputs": ["cancel", "projectRegistration"]},
+    {"id": "cancelGateway", "type": "xor", "name": "Cancel?"},
+    {"id": "saveRecord", "type": "serviceTask", "name": "Write / Save NSSOL Projects Record",
+     "doc": "Create or update NSSOL_PROJECTS row (D03 Figure 1). SR-4: write semantics unspecified; ProjectStore is a test double.",
+     "service": {"class": "nssol.service.ProjectStore", "operation": "save"},
+     "inputs": ["projectRegistration"],
+     "outputs": ["projectRegistration"]},
+    {"id": "cancelled", "type": "end", "name": "Cancelled — no data written"},
+    {"id": "completed", "type": "end", "name": "Completed"}
+  ],
+  "flows": [
+    {"from": "start", "to": "form"},
+    {"from": "form", "to": "cancelGateway"},
+    {"from": "cancelGateway", "to": "cancelled", "name": "Yes / cancel=true",
+     "condition": "return cancel != null && cancel;"},
+    {"from": "cancelGateway", "to": "saveRecord", "name": "No / cancel=false",
+     "condition": "return cancel == null || !cancel;"},
+    {"from": "saveRecord", "to": "completed"}
+  ],
+  "tests": [
+    {"name": "createProject_submitsAndSaves",
+     "start": {"isUpdate": false, "cancel": false, "projectRegistration": {"projectName": "Test Tower Construction", "status": "In-Progress", "isActive": true}},
+     "complete": {"cancel": false},
+     "expect": {"status": "COMPLETED", "saves": 1, "savedFields": {"projectName": "\"Test Tower Construction\"", "projectId": "null"}}},
+    {"name": "updateProject_submitsAndSaves",
+     "start": {"isUpdate": true, "cancel": false, "projectRegistration": {"projectId": 42, "projectName": "Test Tower Construction", "isActive": true}},
+     "complete": {"cancel": false},
+     "expect": {"status": "COMPLETED", "saves": 1, "savedFields": {"projectId": "42"}}},
+    {"name": "cancel_writesNothing",
+     "start": {"isUpdate": false, "cancel": false, "projectRegistration": {"projectName": "Test Tower Construction", "isActive": true}},
+     "complete": {"cancel": true},
+     "expect": {"status": "COMPLETED", "saves": 0}}
+  ],
+  "assumptions": [
+    {"id": "SR-3", "text": "No task assignee/candidate group documented; user task left unassigned."},
+    {"id": "SR-5", "text": "cancel=null treated as not-cancelled (no documented default)."},
+    {"id": "SR-4", "text": "ProjectStore is an in-memory test double; real write semantics unspecified."},
+    {"id": "C1", "text": "Model follows Figure 1: no confirmation node. D04 §14 confirmation section unresolved."},
+    {"id": "C2", "text": "Status requiredness unresolved (D03 ¶38 required vs D04 ¶48 unmarked vs D05 ¶59 nullable); no enforcement coded."}
+  ]
+}

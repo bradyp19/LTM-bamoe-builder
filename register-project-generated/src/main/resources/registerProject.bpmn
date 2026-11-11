@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:drools="http://www.jboss.org/drools"
+  xmlns:java="http://www.java.com/javaTypes"
+  xmlns:tns="http://www.jboss.org/drools"
+  id="_registerProject" name="NSSOL Register Project"
+  targetNamespace="http://www.jboss.org/drools">
+
+  <!-- Generated from spec evidence: D03 Figure 1 (image-inspected 2026-11-09), D03 ¶24–28, D04 ¶24–79 -->
+
+  <bpmn2:itemDefinition id="_cancelItem" structureRef="java.lang.Boolean"/>
+  <bpmn2:itemDefinition id="_isUpdateItem" structureRef="java.lang.Boolean"/>
+  <bpmn2:itemDefinition id="_projectRegistrationItem" structureRef="nssol.model.ProjectRegistration"/>
+  <bpmn2:message id="_saveRecordInMessage" itemRef="_projectRegistrationItem"/>
+  <bpmn2:message id="_saveRecordOutMessage" itemRef="_projectRegistrationItem"/>
+  <bpmn2:interface id="_saveRecordInterface" name="ProjectStore" implementationRef="nssol.service.ProjectStore">
+    <bpmn2:operation id="_saveRecordOperation" name="save" implementationRef="save">
+      <bpmn2:inMessageRef>_saveRecordInMessage</bpmn2:inMessageRef>
+      <bpmn2:outMessageRef>_saveRecordOutMessage</bpmn2:outMessageRef>
+    </bpmn2:operation>
+  </bpmn2:interface>
+
+  <bpmn2:process id="registerProject" tns:packageName="nssol" name="NSSOL Register Project" isExecutable="true" processType="Public">
+    <bpmn2:documentation>Open items and assumptions — SR-3: No task assignee/candidate group documented; user task left unassigned. / SR-5: cancel=null treated as not-cancelled (no documented default). / SR-4: ProjectStore is an in-memory test double; real write semantics unspecified. / C1: Model follows Figure 1: no confirmation node. D04 §14 confirmation section unresolved. / C2: Status requiredness unresolved (D03 ¶38 required vs D04 ¶48 unmarked vs D05 ¶59 nullable); no enforcement coded.</bpmn2:documentation>
+    <bpmn2:property id="cancel" itemSubjectRef="_cancelItem"/>
+    <bpmn2:property id="isUpdate" itemSubjectRef="_isUpdateItem"/>
+    <bpmn2:property id="projectRegistration" itemSubjectRef="_projectRegistrationItem"/>
+
+    <bpmn2:startEvent id="start" name="Start">
+      <bpmn2:documentation>Record actions f2204bff (New, isUpdate=false) / 60ca774a (Edit, isUpdate=true). D03 ¶248–256.</bpmn2:documentation>
+      <bpmn2:outgoing>_sf_start_form</bpmn2:outgoing>
+    </bpmn2:startEvent>
+
+    <bpmn2:userTask id="form" name="Fill Project Registration Form">
+      <bpmn2:documentation>Interface: NSSOL_FRM_ProjectRegistration (D04 ¶24–79). C1 CONFLICT: D04 ¶353–358 documents a confirmation section not in Figure 1 — unresolved. ASSUMPTION: no documented assignee (SR-3); task left unassigned.</bpmn2:documentation>
+      <bpmn2:incoming>_sf_start_form</bpmn2:incoming>
+      <bpmn2:outgoing>_sf_form_cancelGateway</bpmn2:outgoing>
+      <bpmn2:ioSpecification>
+        <bpmn2:dataInput id="_form_in_0" name="isUpdate" itemSubjectRef="_isUpdateItem"/>
+        <bpmn2:dataInput id="_form_in_1" name="projectRegistration" itemSubjectRef="_projectRegistrationItem"/>
+        <bpmn2:dataOutput id="_form_out_0" name="cancel" itemSubjectRef="_cancelItem"/>
+        <bpmn2:dataOutput id="_form_out_1" name="projectRegistration" itemSubjectRef="_projectRegistrationItem"/>
+        <bpmn2:inputSet>
+          <bpmn2:dataInputRefs>_form_in_0</bpmn2:dataInputRefs>
+          <bpmn2:dataInputRefs>_form_in_1</bpmn2:dataInputRefs>
+        </bpmn2:inputSet>
+        <bpmn2:outputSet>
+          <bpmn2:dataOutputRefs>_form_out_0</bpmn2:dataOutputRefs>
+          <bpmn2:dataOutputRefs>_form_out_1</bpmn2:dataOutputRefs>
+        </bpmn2:outputSet>
+      </bpmn2:ioSpecification>
+      <bpmn2:dataInputAssociation>
+        <bpmn2:sourceRef>isUpdate</bpmn2:sourceRef>
+        <bpmn2:targetRef>_form_in_0</bpmn2:targetRef>
+      </bpmn2:dataInputAssociation>
+      <bpmn2:dataInputAssociation>
+        <bpmn2:sourceRef>projectRegistration</bpmn2:sourceRef>
+        <bpmn2:targetRef>_form_in_1</bpmn2:targetRef>
+      </bpmn2:dataInputAssociation>
+      <bpmn2:dataOutputAssociation>
+        <bpmn2:sourceRef>_form_out_0</bpmn2:sourceRef>
+        <bpmn2:targetRef>cancel</bpmn2:targetRef>
+      </bpmn2:dataOutputAssociation>
+      <bpmn2:dataOutputAssociation>
+        <bpmn2:sourceRef>_form_out_1</bpmn2:sourceRef>
+        <bpmn2:targetRef>projectRegistration</bpmn2:targetRef>
+      </bpmn2:dataOutputAssociation>
+    </bpmn2:userTask>
+
+    <bpmn2:exclusiveGateway id="cancelGateway" name="Cancel?" gatewayDirection="Diverging">
+      <bpmn2:incoming>_sf_form_cancelGateway</bpmn2:incoming>
+      <bpmn2:outgoing>_sf_cancelGateway_cancelled</bpmn2:outgoing>
+      <bpmn2:outgoing>_sf_cancelGateway_saveRecord</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+
+    <bpmn2:serviceTask id="saveRecord" name="Write / Save NSSOL Projects Record" implementation="##Java" operationRef="_saveRecordOperation">
+      <bpmn2:documentation>Create or update NSSOL_PROJECTS row (D03 Figure 1). SR-4: write semantics unspecified; ProjectStore is a test double.</bpmn2:documentation>
+      <bpmn2:incoming>_sf_cancelGateway_saveRecord</bpmn2:incoming>
+      <bpmn2:outgoing>_sf_saveRecord_completed</bpmn2:outgoing>
+      <bpmn2:ioSpecification>
+        <bpmn2:dataInput id="_saveRecord_in_0" name="Parameter" itemSubjectRef="_projectRegistrationItem"/>
+        <bpmn2:dataOutput id="_saveRecord_out_0" name="Result" itemSubjectRef="_projectRegistrationItem"/>
+        <bpmn2:inputSet>
+          <bpmn2:dataInputRefs>_saveRecord_in_0</bpmn2:dataInputRefs>
+        </bpmn2:inputSet>
+        <bpmn2:outputSet>
+          <bpmn2:dataOutputRefs>_saveRecord_out_0</bpmn2:dataOutputRefs>
+        </bpmn2:outputSet>
+      </bpmn2:ioSpecification>
+      <bpmn2:dataInputAssociation>
+        <bpmn2:sourceRef>projectRegistration</bpmn2:sourceRef>
+        <bpmn2:targetRef>_saveRecord_in_0</bpmn2:targetRef>
+      </bpmn2:dataInputAssociation>
+      <bpmn2:dataOutputAssociation>
+        <bpmn2:sourceRef>_saveRecord_out_0</bpmn2:sourceRef>
+        <bpmn2:targetRef>projectRegistration</bpmn2:targetRef>
+      </bpmn2:dataOutputAssociation>
+    </bpmn2:serviceTask>
+
+    <bpmn2:endEvent id="cancelled" name="Cancelled — no data written">
+      <bpmn2:incoming>_sf_cancelGateway_cancelled</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:endEvent id="completed" name="Completed">
+      <bpmn2:incoming>_sf_saveRecord_completed</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:sequenceFlow id="_sf_start_form" sourceRef="start" targetRef="form">
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="_sf_form_cancelGateway" sourceRef="form" targetRef="cancelGateway">
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="_sf_cancelGateway_cancelled" sourceRef="cancelGateway" targetRef="cancelled" name="Yes / cancel=true">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression" language="http://www.java.com/java">return cancel != null &amp;&amp; cancel;</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="_sf_cancelGateway_saveRecord" sourceRef="cancelGateway" targetRef="saveRecord" name="No / cancel=false">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression" language="http://www.java.com/java">return cancel == null || !cancel;</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="_sf_saveRecord_completed" sourceRef="saveRecord" targetRef="completed">
+    </bpmn2:sequenceFlow>
+  </bpmn2:process>
+
+  <bpmndi:BPMNDiagram>
+    <bpmndi:BPMNPlane bpmnElement="registerProject">
+      <bpmndi:BPMNShape id="shape_start" bpmnElement="start">
+        <dc:Bounds x="60" y="300" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_form" bpmnElement="form">
+        <dc:Bounds x="260" y="300" width="180" height="110"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_cancelGateway" bpmnElement="cancelGateway">
+        <dc:Bounds x="460" y="300" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_saveRecord" bpmnElement="saveRecord">
+        <dc:Bounds x="660" y="300" width="200" height="100"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_cancelled" bpmnElement="cancelled">
+        <dc:Bounds x="860" y="220" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_completed" bpmnElement="completed">
+        <dc:Bounds x="1060" y="380" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="edge__sf_start_form" bpmnElement="_sf_start_form">
+        <di:waypoint x="96" y="318"/>
+        <di:waypoint x="260" y="355"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge__sf_form_cancelGateway" bpmnElement="_sf_form_cancelGateway">
+        <di:waypoint x="440" y="355"/>
+        <di:waypoint x="460" y="325"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge__sf_cancelGateway_cancelled" bpmnElement="_sf_cancelGateway_cancelled">
+        <di:waypoint x="510" y="325"/>
+        <di:waypoint x="860" y="238"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge__sf_cancelGateway_saveRecord" bpmnElement="_sf_cancelGateway_saveRecord">
+        <di:waypoint x="510" y="325"/>
+        <di:waypoint x="660" y="350"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge__sf_saveRecord_completed" bpmnElement="_sf_saveRecord_completed">
+        <di:waypoint x="860" y="350"/>
+        <di:waypoint x="1060" y="398"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>

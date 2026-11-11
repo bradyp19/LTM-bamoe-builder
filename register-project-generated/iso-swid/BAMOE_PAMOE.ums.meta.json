@@ -1,0 +1,22 @@
+{
+  "spec" : {
+    "mappingId" : "BAMOE_NODE_EXECUTION_COUNT",
+    "processing" : "LAST",
+    "repeat" : true,
+    "breakdownDefs" : [ {
+      "breakdownBy" : {
+        "name" : "INSTANCE_COUNT"
+      },
+      "groupBy" : [ "version", "license_type", "deployment_type", "is_containerized", "available_cpu", "available_memory", "cloud_provider", "kubernetes_distro", "node_execution_count" ],
+      "source" : "metricQuantity",
+      "processing" : "LAST"
+    } ],
+    "data" : {
+      "componentId" : "3d9d28f19d0f45fda113c07fb481e3ea",
+      "componentName" : "IBM Process Automation Manager Open Edition",
+      "metricName" : "INSTANCE_COUNT",
+      "metricDescription" : "BAMOE instance count with workflow node execution metrics",
+      "metricType" : "ADOPTION"
+    }
+  }
+}

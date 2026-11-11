@@ -1,0 +1,822 @@
+{
+  "process": {
+    "id": "allocations",
+    "name": "NSSOL Allocations",
+    "packageName": "nssol",
+    "evidence": "D03 ¶75–134, D03 ¶59–71, D04 ¶168–237, D04 ¶241–251, D04 ¶255–265, D04 ¶83–97"
+  },
+  "models": {
+    "ProjectRegistration": {
+      "fields": [
+        {
+          "name": "projectId",
+          "type": "Integer"
+        },
+        {
+          "name": "projectName",
+          "type": "String"
+        },
+        {
+          "name": "startDate",
+          "type": "java.time.LocalDate"
+        },
+        {
+          "name": "endDate",
+          "type": "java.time.LocalDate"
+        },
+        {
+          "name": "orderDate",
+          "type": "java.time.LocalDate"
+        },
+        {
+          "name": "orderAmountMillionYen",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "expectedOrderAmount",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "orderFiscalYear",
+          "type": "String"
+        },
+        {
+          "name": "statusChanged",
+          "type": "java.time.LocalDate"
+        },
+        {
+          "name": "status",
+          "type": "String"
+        },
+        {
+          "name": "probability",
+          "type": "String"
+        },
+        {
+          "name": "completedProjects",
+          "type": "Integer"
+        },
+        {
+          "name": "plannedHeadCount",
+          "type": "Integer"
+        },
+        {
+          "name": "actualHeadcount",
+          "type": "Integer"
+        },
+        {
+          "name": "projectCategory",
+          "type": "String"
+        },
+        {
+          "name": "client",
+          "type": "String"
+        },
+        {
+          "name": "inquirySource",
+          "type": "String"
+        },
+        {
+          "name": "constructionSite",
+          "type": "String"
+        },
+        {
+          "name": "buildingUsage",
+          "type": "String"
+        },
+        {
+          "name": "headOffice",
+          "type": "String"
+        },
+        {
+          "name": "branchOffice",
+          "type": "String"
+        },
+        {
+          "name": "targetOrganization",
+          "type": "String"
+        },
+        {
+          "name": "responsibleDepartment",
+          "type": "String"
+        },
+        {
+          "name": "siteRepresentative",
+          "type": "String"
+        },
+        {
+          "name": "specialNotes",
+          "type": "String"
+        },
+        {
+          "name": "primeContractor",
+          "type": "String"
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean"
+        }
+      ],
+      "evidence": "D05 ¶48–76"
+    },
+    "Employee": {
+      "fields": [
+        {
+          "name": "empId",
+          "type": "Integer"
+        },
+        {
+          "name": "empName",
+          "type": "String"
+        },
+        {
+          "name": "affliation",
+          "type": "String"
+        },
+        {
+          "name": "jobGrade",
+          "type": "String"
+        },
+        {
+          "name": "qualification",
+          "type": "String"
+        },
+        {
+          "name": "skills",
+          "type": "String"
+        },
+        {
+          "name": "constructionHistory",
+          "type": "String"
+        },
+        {
+          "name": "allocationPercentage",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "headOffice",
+          "type": "String"
+        },
+        {
+          "name": "branch",
+          "type": "String"
+        },
+        {
+          "name": "targetOrganization",
+          "type": "String"
+        },
+        {
+          "name": "qualificationHolder",
+          "type": "String"
+        },
+        {
+          "name": "createdBy",
+          "type": "String"
+        },
+        {
+          "name": "createdOn",
+          "type": "java.time.LocalDateTime"
+        },
+        {
+          "name": "updatedBy",
+          "type": "String"
+        },
+        {
+          "name": "updatedOn",
+          "type": "java.time.LocalDateTime"
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean"
+        }
+      ],
+      "evidence": "D05 ¶101–119"
+    },
+    "Subcontractor": {
+      "fields": [
+        {
+          "name": "subcontractorId",
+          "type": "Integer"
+        },
+        {
+          "name": "association",
+          "type": "String"
+        },
+        {
+          "name": "companyName",
+          "type": "String"
+        },
+        {
+          "name": "address",
+          "type": "String"
+        },
+        {
+          "name": "speciality",
+          "type": "String"
+        },
+        {
+          "name": "qualificationSkills",
+          "type": "String"
+        },
+        {
+          "name": "allocationPercentage",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "affiliation",
+          "type": "String"
+        },
+        {
+          "name": "heldQualification",
+          "type": "String"
+        },
+        {
+          "name": "expertiseArea",
+          "type": "String"
+        },
+        {
+          "name": "partenerAssociationOfficer",
+          "type": "String"
+        },
+        {
+          "name": "maxAssignableEngineers",
+          "type": "Integer"
+        },
+        {
+          "name": "responsibleDepartments",
+          "type": "String"
+        },
+        {
+          "name": "siteRepresentative",
+          "type": "String"
+        },
+        {
+          "name": "remarks",
+          "type": "String"
+        },
+        {
+          "name": "certainty",
+          "type": "String"
+        },
+        {
+          "name": "createdBy",
+          "type": "String"
+        },
+        {
+          "name": "createdOn",
+          "type": "java.time.LocalDateTime"
+        },
+        {
+          "name": "updatedBy",
+          "type": "String"
+        },
+        {
+          "name": "updatedOn",
+          "type": "java.time.LocalDateTime"
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean"
+        }
+      ],
+      "evidence": "D05 ¶136–158"
+    },
+    "MapEmployee": {
+      "fields": [
+        {
+          "name": "employeeMappedId",
+          "type": "Integer"
+        },
+        {
+          "name": "projectId",
+          "type": "Integer"
+        },
+        {
+          "name": "employeeId",
+          "type": "Integer"
+        },
+        {
+          "name": "role",
+          "type": "String"
+        },
+        {
+          "name": "participant",
+          "type": "String"
+        },
+        {
+          "name": "position",
+          "type": "String"
+        },
+        {
+          "name": "rank",
+          "type": "String"
+        },
+        {
+          "name": "periodOnsite",
+          "type": "String"
+        },
+        {
+          "name": "periodOffsite",
+          "type": "String"
+        },
+        {
+          "name": "supervisingEngineer",
+          "type": "String"
+        },
+        {
+          "name": "leadEngineer",
+          "type": "String"
+        },
+        {
+          "name": "fiscalYear",
+          "type": "String"
+        },
+        {
+          "name": "jan",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "feb",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "mar",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "apr",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "may",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "jun",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "jul",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "aug",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "sep",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "oct",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "nov",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "dec",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "createdBy",
+          "type": "String"
+        },
+        {
+          "name": "createdOn",
+          "type": "java.time.LocalDateTime"
+        },
+        {
+          "name": "updatedBy",
+          "type": "String"
+        },
+        {
+          "name": "updatedOn",
+          "type": "java.time.LocalDateTime"
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean"
+        }
+      ],
+      "evidence": "D05 ¶177–207"
+    },
+    "MapSubcontractor": {
+      "fields": [
+        {
+          "name": "subconMappedId",
+          "type": "Integer"
+        },
+        {
+          "name": "projectId",
+          "type": "Integer"
+        },
+        {
+          "name": "subconId",
+          "type": "Integer"
+        },
+        {
+          "name": "companyName",
+          "type": "String"
+        },
+        {
+          "name": "partnerType",
+          "type": "String"
+        },
+        {
+          "name": "industry",
+          "type": "String"
+        },
+        {
+          "name": "periodOnsite",
+          "type": "String"
+        },
+        {
+          "name": "periodOffsite",
+          "type": "String"
+        },
+        {
+          "name": "maxAssignableEngineers",
+          "type": "Integer"
+        },
+        {
+          "name": "category",
+          "type": "String"
+        },
+        {
+          "name": "budget",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "fiscalYear",
+          "type": "String"
+        },
+        {
+          "name": "jan",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "feb",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "mar",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "apr",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "may",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "jun",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "jul",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "aug",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "sep",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "oct",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "nov",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "dec",
+          "type": "java.math.BigDecimal"
+        },
+        {
+          "name": "createdBy",
+          "type": "String"
+        },
+        {
+          "name": "createdOn",
+          "type": "java.time.LocalDateTime"
+        },
+        {
+          "name": "updatedBy",
+          "type": "String"
+        },
+        {
+          "name": "updatedOn",
+          "type": "java.time.LocalDateTime"
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean"
+        }
+      ],
+      "evidence": "D05 ¶232–262"
+    }
+  },
+  "variables": [
+    {
+      "name": "projectInfo",
+      "type": "nssol.model.ProjectRegistration",
+      "required": true,
+      "evidence": "D03 ¶61"
+    },
+    {
+      "name": "selectedEmployees",
+      "type": "java.util.List",
+      "elementType": "nssol.model.Employee",
+      "evidence": "D03 ¶62"
+    },
+    {
+      "name": "selectedSubcontractors",
+      "type": "java.util.List",
+      "elementType": "nssol.model.Subcontractor",
+      "evidence": "D03 ¶63"
+    },
+    {
+      "name": "assignedEmployees",
+      "type": "java.util.List",
+      "elementType": "nssol.model.MapEmployee",
+      "evidence": "D03 ¶64"
+    },
+    {
+      "name": "assignedSubcontractors",
+      "type": "java.util.List",
+      "elementType": "nssol.model.MapSubcontractor",
+      "evidence": "D03 ¶65"
+    },
+    {
+      "name": "isAddEmployee",
+      "type": "java.lang.Boolean",
+      "evidence": "D03 ¶66"
+    },
+    {
+      "name": "isAddSubcontractor",
+      "type": "java.lang.Boolean",
+      "evidence": "D03 ¶67"
+    },
+    {
+      "name": "isAssign",
+      "type": "java.lang.Boolean",
+      "evidence": "D03 ¶68"
+    },
+    {
+      "name": "allocationCancel",
+      "type": "java.lang.Boolean",
+      "evidence": "D03 ¶69"
+    },
+    {
+      "name": "empCancel",
+      "type": "java.lang.Boolean",
+      "evidence": "D03 ¶70"
+    },
+    {
+      "name": "SubconCancel",
+      "type": "java.lang.Boolean",
+      "evidence": "D03 ¶71"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start",
+      "doc": "Flow: D03 ¶76–77."
+    },
+    {
+      "id": "allocationMainScreen",
+      "type": "userTask",
+      "name": "Allocation Main Screen",
+      "doc": "Interface: NSSOL_SEC_Allocation (D04 ¶168–237). Flow: D03 ¶80–91. Inputs: rule inputs at D04 ¶174–184. PROPOSAL (AL-7): outputs are the flags the buttons set (D03 ¶88–91) and the lists D04 ¶179–180 describe as passed back to PV. No documented assignee (AL-1).",
+      "inputs": [
+        "projectInfo",
+        "selectedEmployees",
+        "selectedSubcontractors",
+        "assignedEmployees",
+        "assignedSubcontractors",
+        "isAddEmployee",
+        "isAddSubcontractor",
+        "isAssign",
+        "allocationCancel"
+      ],
+      "outputs": [
+        "assignedEmployees",
+        "assignedSubcontractors",
+        "isAddEmployee",
+        "isAddSubcontractor",
+        "isAssign",
+        "allocationCancel"
+      ]
+    },
+    {
+      "id": "allocationMainScreenGateway",
+      "type": "xor",
+      "name": "After Allocation Main Screen",
+      "doc": "SYNTHESIZED: not a documented node. The branches at D03 ¶93–115 leave 'Allocation Main Screen' directly; this exclusive gateway carries their conditions."
+    },
+    {
+      "id": "end1",
+      "type": "end",
+      "name": "End",
+      "doc": "Flow: D03 ¶93."
+    },
+    {
+      "id": "employeeSearchScreen",
+      "type": "userTask",
+      "name": "Employee Search Screen",
+      "doc": "Interface: NSSOL_GRID_Employee_Search_Screen (D04 ¶241–251). Flow: D03 ¶98–101. PROPOSAL (AL-7): outputs from D03 ¶101–102. No rule inputs are documented for this interface.",
+      "inputs": [],
+      "outputs": [
+        "selectedEmployees",
+        "empCancel"
+      ]
+    },
+    {
+      "id": "subcontractorSearchScreen",
+      "type": "userTask",
+      "name": "Subcontractor Search Screen",
+      "doc": "Interface: NSSOL_GRID_Subcontractor_Search_Screen (D04 ¶255–265). Flow: D03 ¶108–111. PROPOSAL (AL-7): outputs from D03 ¶111–112. No rule inputs are documented for this interface.",
+      "inputs": [],
+      "outputs": [
+        "selectedSubcontractors",
+        "SubconCancel"
+      ]
+    },
+    {
+      "id": "allocationConfirmation",
+      "type": "userTask",
+      "name": "Allocation Confirmation",
+      "doc": "Interface: NSSOL_FRM_Allocation_Confirmation (D04 ¶83–97). Flow: D03 ¶118–121. Inputs: rule inputs at D04 ¶89–91. PROPOSAL (AL-7): outputs from D04 ¶96. AL-C2 CONFLICT: D04 ¶97 documents a Back button; the diagram has no path back.",
+      "inputs": [
+        "projectInfo"
+      ],
+      "outputs": [
+        "assignedEmployees",
+        "assignedSubcontractors"
+      ]
+    },
+    {
+      "id": "writeMapEmployeeRecords",
+      "type": "serviceTask",
+      "name": "Write Map Employee Records",
+      "doc": "Flow: D03 ¶124–126. AL-4: untyped in the diagram; MapEmployeeStore is a proposed test double. Saves assignedEmployees to NSSOL Map Employees (D03 ¶125–126); write semantics unspecified.",
+      "service": {
+        "class": "nssol.service.MapEmployeeStore",
+        "operation": "save"
+      },
+      "inputs": [
+        "assignedEmployees"
+      ],
+      "outputs": [
+        "assignedEmployees"
+      ]
+    },
+    {
+      "id": "writeMapSubcontractorRecords",
+      "type": "serviceTask",
+      "name": "Write Map Subcontractor Records",
+      "doc": "Flow: D03 ¶129–130. AL-4: untyped in the diagram; MapSubcontractorStore is a proposed test double. Saves assignedSubcontractors to NSSOL Map Subcontractors (D03 ¶130); write semantics unspecified.",
+      "service": {
+        "class": "nssol.service.MapSubcontractorStore",
+        "operation": "save"
+      },
+      "inputs": [
+        "assignedSubcontractors"
+      ],
+      "outputs": [
+        "assignedSubcontractors"
+      ]
+    },
+    {
+      "id": "end2",
+      "type": "end",
+      "name": "End",
+      "doc": "Flow: D03 ¶133."
+    }
+  ],
+  "flows": [
+    {
+      "from": "start",
+      "to": "allocationMainScreen"
+    },
+    {
+      "from": "allocationMainScreen",
+      "to": "allocationMainScreenGateway"
+    },
+    {
+      "from": "allocationMainScreenGateway",
+      "to": "end1",
+      "name": "allocationCancel = true",
+      "condition": "return allocationCancel != null && allocationCancel;"
+    },
+    {
+      "from": "allocationMainScreenGateway",
+      "to": "employeeSearchScreen",
+      "name": "isAddEmployee = true",
+      "condition": "return isAddEmployee != null && isAddEmployee;"
+    },
+    {
+      "from": "employeeSearchScreen",
+      "to": "allocationMainScreen",
+      "name": "empCancel = true / confirm"
+    },
+    {
+      "from": "allocationMainScreenGateway",
+      "to": "subcontractorSearchScreen",
+      "name": "isAddSubcontractor = true",
+      "condition": "return isAddSubcontractor != null && isAddSubcontractor;"
+    },
+    {
+      "from": "subcontractorSearchScreen",
+      "to": "allocationMainScreen",
+      "name": "SubconCancel = true / confirm"
+    },
+    {
+      "from": "allocationMainScreenGateway",
+      "to": "allocationConfirmation",
+      "name": "isAssign = true",
+      "condition": "return isAssign != null && isAssign;"
+    },
+    {
+      "from": "allocationConfirmation",
+      "to": "writeMapEmployeeRecords"
+    },
+    {
+      "from": "writeMapEmployeeRecords",
+      "to": "writeMapSubcontractorRecords"
+    },
+    {
+      "from": "writeMapSubcontractorRecords",
+      "to": "end2"
+    }
+  ],
+  "tests": [],
+  "assumptions": [
+    {
+      "id": "AL-1",
+      "text": "No task assignee/candidate group documented; the four user tasks are left unassigned (same gap as SR-3)."
+    },
+    {
+      "id": "AL-2",
+      "text": "Branch precedence and default are undocumented (D03 ¶93–115): nothing says which flag wins if several are true, or what happens if none is. Conditions are emitted in document order with no default flow."
+    },
+    {
+      "id": "AL-3",
+      "text": "Flag reset on loop-back is undocumented (D03 ¶102–103, ¶112–113): nothing clears isAddEmployee / isAddSubcontractor when a search screen returns, so the same branch is taken again unless the form resets the flag."
+    },
+    {
+      "id": "AL-4",
+      "text": "The two write nodes carry no task type in the diagram (D03 ¶124, ¶129); modelled as service tasks. MapEmployeeStore and MapSubcontractorStore are proposed test doubles; real write semantics unspecified (same gap as SR-4)."
+    },
+    {
+      "id": "AL-C1",
+      "text": "CONFLICT: D03 ¶220 counts 3 forms (allocation + 2 search); the flow diagram has a fourth user task, Allocation Confirmation (D03 ¶118–119). Model follows the diagram."
+    },
+    {
+      "id": "AL-C2",
+      "text": "CONFLICT: D04 ¶97 gives Allocation Confirmation a Back button returning to the allocation screen; the flow diagram shows no path back from it (D03 ¶118–124). Model follows the diagram: no back flow."
+    },
+    {
+      "id": "AL-5",
+      "text": "Process name template is dynamic (D03 ¶49); the BPMN process name is the static model name."
+    },
+    {
+      "id": "AL-6",
+      "text": "The documented projectInfo default (D03 ¶61) is not carried into the spec."
+    },
+    {
+      "id": "AL-7",
+      "text": "Target-design proposals pending approval: class names (ProjectRegistration reused for NSSOL Projects; Employee, Subcontractor, MapEmployee, MapSubcontractor), DateTime as java.time.LocalDateTime, list variables as java.util.List, and every user-task output."
+    },
+    {
+      "id": "AL-8",
+      "text": "Cancelling a search screen is documented as returning without selection (D04 ¶251); the merged return flow carries no condition, so nothing in the process enforces it."
+    },
+    {
+      "id": "T-1",
+      "text": "Gateway 'After Allocation Main Screen' is synthesized: the branches at D03 ¶93–115 leave 'Allocation Main Screen' directly and no gateway is documented."
+    },
+    {
+      "id": "T-2",
+      "text": "Branches 'empCancel = true' and 'confirm' (D03 ¶102–103) both lead from 'Employee Search Screen' to 'Allocation Main Screen'; emitted as one flow with no condition."
+    },
+    {
+      "id": "T-3",
+      "text": "Branches 'SubconCancel = true' and 'confirm' (D03 ¶112–113) both lead from 'Subcontractor Search Screen' to 'Allocation Main Screen'; emitted as one flow with no condition."
+    },
+    {
+      "id": "T-4",
+      "text": "'Allocation Main Screen' has 3 incoming flows (from 'start', 'employeeSearchScreen', 'subcontractorSearchScreen'); no merge gateway is documented and none is emitted."
+    }
+  ]
+}
