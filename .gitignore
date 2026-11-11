@@ -7,3 +7,4 @@ target/
 .env
 .bob/
 accelerator-smoke/
+iso-swid/*.ums.data.json
