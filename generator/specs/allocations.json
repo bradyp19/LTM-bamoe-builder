@@ -594,6 +594,12 @@
       "doc": "Flow: D03 ¶76–77."
     },
     {
+      "id": "allocationMainScreenMerge",
+      "type": "xor",
+      "name": "Before Allocation Main Screen",
+      "doc": "SYNTHESIZED: not a documented node. 3 flows reach 'Allocation Main Screen'; this converging exclusive gateway merges them."
+    },
+    {
       "id": "allocationMainScreen",
       "type": "userTask",
       "name": "Allocation Main Screen",
@@ -707,7 +713,7 @@
   "flows": [
     {
       "from": "start",
-      "to": "allocationMainScreen"
+      "to": "allocationMainScreenMerge"
     },
     {
       "from": "allocationMainScreen",
@@ -727,7 +733,7 @@
     },
     {
       "from": "employeeSearchScreen",
-      "to": "allocationMainScreen",
+      "to": "allocationMainScreenMerge",
       "name": "empCancel = true / confirm"
     },
     {
@@ -738,7 +744,7 @@
     },
     {
       "from": "subcontractorSearchScreen",
-      "to": "allocationMainScreen",
+      "to": "allocationMainScreenMerge",
       "name": "SubconCancel = true / confirm"
     },
     {
@@ -758,9 +764,148 @@
     {
       "from": "writeMapSubcontractorRecords",
       "to": "end2"
+    },
+    {
+      "from": "allocationMainScreenMerge",
+      "to": "allocationMainScreen"
     }
   ],
-  "tests": [],
+  "tests": [
+    {
+      "name": "cancel_writesNothing",
+      "start": {
+        "projectInfo": {
+          "projectId": 3,
+          "projectName": "Test Tower Construction",
+          "isActive": true
+        }
+      },
+      "steps": [
+        {
+          "task": "allocationMainScreen",
+          "complete": {
+            "allocationCancel": true
+          }
+        }
+      ],
+      "expect": {
+        "status": "COMPLETED",
+        "saves": {
+          "MapEmployeeStore": 0,
+          "MapSubcontractorStore": 0
+        }
+      }
+    },
+    {
+      "name": "assign_savesEmployeesAndSubcontractors",
+      "start": {
+        "projectInfo": {
+          "projectId": 3,
+          "projectName": "Test Tower Construction",
+          "isActive": true
+        }
+      },
+      "steps": [
+        {
+          "task": "allocationMainScreen",
+          "complete": {
+            "isAssign": true,
+            "assignedEmployees": [
+              {
+                "employeeMappedId": 1,
+                "projectId": 3,
+                "employeeId": 10,
+                "role": "Site Manager"
+              }
+            ],
+            "assignedSubcontractors": [
+              {
+                "subconMappedId": 1,
+                "projectId": 3,
+                "subconId": 20,
+                "companyName": "Acme Subcontracting"
+              }
+            ]
+          }
+        },
+        {
+          "task": "allocationConfirmation",
+          "complete": {
+            "assignedEmployees": [
+              {
+                "employeeMappedId": 1,
+                "projectId": 3,
+                "employeeId": 10,
+                "role": "Site Manager"
+              }
+            ],
+            "assignedSubcontractors": [
+              {
+                "subconMappedId": 1,
+                "projectId": 3,
+                "subconId": 20,
+                "companyName": "Acme Subcontracting"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "status": "COMPLETED",
+        "saves": {
+          "MapEmployeeStore": 1,
+          "MapSubcontractorStore": 1
+        },
+        "savedLists": {
+          "MapEmployeeStore": 1,
+          "MapSubcontractorStore": 1
+        }
+      }
+    },
+    {
+      "name": "addEmployee_returnsToMainScreenThenCancels",
+      "start": {
+        "projectInfo": {
+          "projectId": 3,
+          "projectName": "Test Tower Construction",
+          "isActive": true
+        }
+      },
+      "steps": [
+        {
+          "task": "allocationMainScreen",
+          "complete": {
+            "isAddEmployee": true
+          }
+        },
+        {
+          "task": "employeeSearchScreen",
+          "complete": {
+            "selectedEmployees": [
+              {
+                "empId": 10,
+                "empName": "Test Employee"
+              }
+            ],
+            "empCancel": false
+          }
+        },
+        {
+          "task": "allocationMainScreen",
+          "complete": {
+            "allocationCancel": true
+          }
+        }
+      ],
+      "expect": {
+        "status": "COMPLETED",
+        "saves": {
+          "MapEmployeeStore": 0,
+          "MapSubcontractorStore": 0
+        }
+      }
+    }
+  ],
   "assumptions": [
     {
       "id": "AL-1",
@@ -816,7 +961,7 @@
     },
     {
       "id": "T-4",
-      "text": "'Allocation Main Screen' has 3 incoming flows (from 'start', 'employeeSearchScreen', 'subcontractorSearchScreen'); no merge gateway is documented and none is emitted."
+      "text": "Merge gateway 'Before Allocation Main Screen' is synthesized: 3 flows (from 'Start', 'Employee Search Screen', 'Subcontractor Search Screen') reach 'Allocation Main Screen' and no merge gateway is documented; BAMOE does not accept several incoming flows on a task."
     }
   ]
 }

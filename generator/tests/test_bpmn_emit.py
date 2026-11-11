@@ -74,3 +74,42 @@ class TestStructure:
         _, raw = xml
         assert "C1 CONFLICT" in raw
         assert "SR-3" in raw
+
+
+ALLOC = json.loads((Path(__file__).parents[1] / "specs" / "allocations.json").read_text())
+
+
+@pytest.fixture(scope="module")
+def alloc():
+    return ET.fromstring(emit_bpmn(ALLOC))
+
+
+class TestAllocationsBpmn:
+    def test_merge_gateway_converges_and_decision_gateway_diverges(self, alloc):
+        gateways = {g.get("id"): g.get("gatewayDirection")
+                    for g in alloc.iter(f"{BPMN}exclusiveGateway")}
+        assert gateways == {"allocationMainScreenMerge": "Converging",
+                            "allocationMainScreenGateway": "Diverging"}
+
+    def test_no_task_has_several_incoming_flows(self, alloc):
+        for tag in ("userTask", "serviceTask", "endEvent"):
+            for e in alloc.iter(f"{BPMN}{tag}"):
+                assert len(e.findall(f"{BPMN}incoming")) <= 1, e.get("id")
+
+    def test_list_variable_item_carries_generic_but_service_item_does_not(self, alloc):
+        items = {i.get("id"): i.get("structureRef") for i in alloc.iter(f"{BPMN}itemDefinition")}
+        assert items["_assignedEmployeesItem"] == "java.util.List<nssol.model.MapEmployee>"
+        assert items["_assignedEmployeesRawItem"] == "java.util.List"
+        refs = {d.get("itemSubjectRef") for st in alloc.iter(f"{BPMN}serviceTask")
+                for d in st.iter(f"{BPMN}dataInput")}
+        assert refs == {"_assignedEmployeesRawItem", "_assignedSubcontractorsRawItem"}
+
+    def test_node_documentation_fits_the_metadata_column(self, alloc):
+        for n in alloc.find(f"{BPMN}process"):
+            doc = n.find(f"{BPMN}documentation")
+            if n.tag != f"{BPMN}documentation" and doc is not None:
+                assert len(doc.text) <= 255, n.get("id")
+
+    def test_truncated_node_documentation_is_kept_in_full_on_the_process(self, alloc):
+        process_doc = alloc.find(f"{BPMN}process").find(f"{BPMN}documentation").text
+        assert "[allocationMainScreen] Interface: NSSOL_SEC_Allocation (D04 ¶168–237)." in process_doc

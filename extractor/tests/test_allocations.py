@@ -18,6 +18,7 @@ from ltm_gen.bpmn_emit import emit_bpmn
 SUPPLEMENT = SUPPLEMENTS / "allocations.json"
 BPMN = "{http://www.omg.org/spec/BPMN/20100524/MODEL}"
 GATEWAY = "allocationMainScreenGateway"
+MERGE = "allocationMainScreenMerge"
 
 
 @pytest.fixture(scope="module")
@@ -100,9 +101,10 @@ class TestModels:
 
 
 class TestNodes:
-    def test_nodes_in_document_order_with_one_synthesized_gateway(self, spec):
+    def test_nodes_in_document_order_with_two_synthesized_gateways(self, spec):
         assert [(n["id"], n["type"]) for n in spec["nodes"]] == [
             ("start", "start"),
+            (MERGE, "xor"),
             ("allocationMainScreen", "userTask"),
             (GATEWAY, "xor"),
             ("end1", "end"),
@@ -123,6 +125,12 @@ class TestNodes:
         doc = node(spec, GATEWAY)["doc"]
         assert doc.startswith("SYNTHESIZED")
         assert "D03 ¶93–115" in doc
+
+    def test_synthesized_merge_gateway_is_labelled_as_such(self, spec):
+        n = node(spec, MERGE)
+        assert n["name"] == "Before Allocation Main Screen"
+        assert n["doc"].startswith("SYNTHESIZED")
+        assert "3 flows" in n["doc"]
 
     def test_user_task_doc_cites_interface_and_flow_lines(self, spec):
         doc = node(spec, "allocationMainScreen")["doc"]
@@ -158,23 +166,24 @@ class TestFlows:
     def test_flows(self, spec):
         cond = "return {0} != null && {0};".format
         assert spec["flows"] == [
-            {"from": "start", "to": "allocationMainScreen"},
+            {"from": "start", "to": MERGE},
             {"from": "allocationMainScreen", "to": GATEWAY},
             {"from": GATEWAY, "to": "end1", "name": "allocationCancel = true",
              "condition": cond("allocationCancel")},
             {"from": GATEWAY, "to": "employeeSearchScreen", "name": "isAddEmployee = true",
              "condition": cond("isAddEmployee")},
-            {"from": "employeeSearchScreen", "to": "allocationMainScreen",
+            {"from": "employeeSearchScreen", "to": MERGE,
              "name": "empCancel = true / confirm"},
             {"from": GATEWAY, "to": "subcontractorSearchScreen",
              "name": "isAddSubcontractor = true", "condition": cond("isAddSubcontractor")},
-            {"from": "subcontractorSearchScreen", "to": "allocationMainScreen",
+            {"from": "subcontractorSearchScreen", "to": MERGE,
              "name": "SubconCancel = true / confirm"},
             {"from": GATEWAY, "to": "allocationConfirmation", "name": "isAssign = true",
              "condition": cond("isAssign")},
             {"from": "allocationConfirmation", "to": "writeMapEmployeeRecords"},
             {"from": "writeMapEmployeeRecords", "to": "writeMapSubcontractorRecords"},
             {"from": "writeMapSubcontractorRecords", "to": "end2"},
+            {"from": MERGE, "to": "allocationMainScreen"},
         ]
 
     def test_flow_ids_will_be_unique_in_the_generator(self, spec):
@@ -194,13 +203,15 @@ class TestTransformationsAreDisclosed:
         assert "synthesized" in t["T-1"] and "D03 ¶93–115" in t["T-1"]
         assert "empCancel = true" in t["T-2"] and "D03 ¶102–103" in t["T-2"]
         assert "SubconCancel = true" in t["T-3"] and "D03 ¶112–113" in t["T-3"]
-        assert "3 incoming flows" in t["T-4"] and "Allocation Main Screen" in t["T-4"]
+        assert "Merge gateway 'Before Allocation Main Screen'" in t["T-4"]
+        assert "3 flows" in t["T-4"] and "BAMOE does not accept" in t["T-4"]
 
     def test_diagnostics_report_the_same_transformations(self, result):
         codes = [d.code for d in result.diagnostics]
         assert codes.count("gateway-synthesized") == 1
         assert codes.count("branches-merged") == 2
-        assert codes.count("implicit-join") == 1
+        assert codes.count("merge-gateway-synthesized") == 1
+        assert "implicit-join" not in codes
 
     def test_every_assumption_with_citations_has_verified_support(self, supplement):
         for a in supplement["assumptions"]:
@@ -217,9 +228,26 @@ class TestGeneratorCompatibility:
         assert re.fullmatch(r"[a-z][A-Za-z0-9]*", proc.get("id"))
         assert len(list(root.iter(f"{BPMN}userTask"))) == 4
         assert len(list(root.iter(f"{BPMN}serviceTask"))) == 2
-        assert len(list(root.iter(f"{BPMN}exclusiveGateway"))) == 1
-        assert len(list(root.iter(f"{BPMN}sequenceFlow"))) == 11
+        assert len(list(root.iter(f"{BPMN}exclusiveGateway"))) == 2
+        assert len(list(root.iter(f"{BPMN}sequenceFlow"))) == 12
 
     def test_spec_file_on_disk_is_the_current_extraction(self, spec):
         on_disk = json.loads((SPECS / "allocations.json").read_text(encoding="utf-8"))
         assert on_disk == spec
+
+
+class TestScenarioValidation:
+    def test_scenario_for_an_unknown_task_is_an_error(self, real_docset, supplement):
+        supplement["tests"][0]["steps"][0]["task"] = "noSuchTask"
+        with pytest.raises(ExtractionError, match="noSuchTask.*not a user task"):
+            build_spec(real_docset, supplement)
+
+    def test_scenario_value_for_an_undeclared_variable_is_an_error(self, real_docset, supplement):
+        supplement["tests"][0]["steps"][0]["complete"]["bogus"] = True
+        with pytest.raises(ExtractionError, match="'bogus' is not a declared process variable"):
+            build_spec(real_docset, supplement)
+
+    def test_scenario_list_item_with_an_unknown_field_is_an_error(self, real_docset, supplement):
+        supplement["tests"][1]["steps"][0]["complete"]["assignedEmployees"][0]["nope"] = 1
+        with pytest.raises(ExtractionError, match="MapEmployee has no field 'nope'"):
+            build_spec(real_docset, supplement)

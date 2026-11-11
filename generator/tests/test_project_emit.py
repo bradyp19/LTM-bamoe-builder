@@ -53,3 +53,27 @@ class TestServiceStubTypes:
         reference = Path(__file__).parents[2] / "register-project-generated" / \
             "src/main/java/nssol/service/ProjectStore.java"
         assert _service(register, "ProjectStore") == reference.read_text()
+
+
+class TestGeneratedProjectCompilesAndRunsOnBamoe:
+    """Facts verified by running `mvn test` on the generated allocations project."""
+
+    def test_models_are_serializable(self, allocations):
+        src = (allocations / "src/main/java/nssol/model/MapEmployee.java").read_text()
+        assert "implements java.io.Serializable" in src
+        assert "serialVersionUID" in src
+
+    def test_flat_classpath_only_when_a_variable_is_a_list(self, allocations, register):
+        assert "quarkus.test.flat-class-path=true" in \
+            (allocations / "src/main/resources/application.properties").read_text()
+        assert "flat-class-path" not in \
+            (register / "src/main/resources/application.properties").read_text()
+
+    def test_scenario_tests_use_one_work_item_per_step(self, allocations):
+        src = (allocations / "src/test/java/nssol/AllocationsProcessTest.java").read_text()
+        assert src.count("@Test") == 3
+        assert 'getName()).isEqualTo("Allocation Confirmation")' in src
+        assert "step1_assignedEmployees0" in src and "step2_assignedEmployees0" in src
+        assert "new ArrayList<>(List.of(" in src
+        assert "import java.util.ArrayList;" in src
+        assert "MapEmployeeStore.clear();" in src and "MapSubcontractorStore.clear();" in src

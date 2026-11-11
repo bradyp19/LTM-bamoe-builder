@@ -109,5 +109,141 @@
      "support": [
        {"cite": "D04 ¶251", "quote": "Cancel → returns without selection (sets `empCancel=true`)"}
      ]}
+  ],
+  "tests": [
+    {
+      "name": "cancel_writesNothing",
+      "start": {
+        "projectInfo": {
+          "projectId": 3,
+          "projectName": "Test Tower Construction",
+          "isActive": true
+        }
+      },
+      "steps": [
+        {
+          "task": "allocationMainScreen",
+          "complete": {
+            "allocationCancel": true
+          }
+        }
+      ],
+      "expect": {
+        "status": "COMPLETED",
+        "saves": {
+          "MapEmployeeStore": 0,
+          "MapSubcontractorStore": 0
+        }
+      }
+    },
+    {
+      "name": "assign_savesEmployeesAndSubcontractors",
+      "start": {
+        "projectInfo": {
+          "projectId": 3,
+          "projectName": "Test Tower Construction",
+          "isActive": true
+        }
+      },
+      "steps": [
+        {
+          "task": "allocationMainScreen",
+          "complete": {
+            "isAssign": true,
+            "assignedEmployees": [
+              {
+                "employeeMappedId": 1,
+                "projectId": 3,
+                "employeeId": 10,
+                "role": "Site Manager"
+              }
+            ],
+            "assignedSubcontractors": [
+              {
+                "subconMappedId": 1,
+                "projectId": 3,
+                "subconId": 20,
+                "companyName": "Acme Subcontracting"
+              }
+            ]
+          }
+        },
+        {
+          "task": "allocationConfirmation",
+          "complete": {
+            "assignedEmployees": [
+              {
+                "employeeMappedId": 1,
+                "projectId": 3,
+                "employeeId": 10,
+                "role": "Site Manager"
+              }
+            ],
+            "assignedSubcontractors": [
+              {
+                "subconMappedId": 1,
+                "projectId": 3,
+                "subconId": 20,
+                "companyName": "Acme Subcontracting"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "status": "COMPLETED",
+        "saves": {
+          "MapEmployeeStore": 1,
+          "MapSubcontractorStore": 1
+        },
+        "savedLists": {
+          "MapEmployeeStore": 1,
+          "MapSubcontractorStore": 1
+        }
+      }
+    },
+    {
+      "name": "addEmployee_returnsToMainScreenThenCancels",
+      "start": {
+        "projectInfo": {
+          "projectId": 3,
+          "projectName": "Test Tower Construction",
+          "isActive": true
+        }
+      },
+      "steps": [
+        {
+          "task": "allocationMainScreen",
+          "complete": {
+            "isAddEmployee": true
+          }
+        },
+        {
+          "task": "employeeSearchScreen",
+          "complete": {
+            "selectedEmployees": [
+              {
+                "empId": 10,
+                "empName": "Test Employee"
+              }
+            ],
+            "empCancel": false
+          }
+        },
+        {
+          "task": "allocationMainScreen",
+          "complete": {
+            "allocationCancel": true
+          }
+        }
+      ],
+      "expect": {
+        "status": "COMPLETED",
+        "saves": {
+          "MapEmployeeStore": 0,
+          "MapSubcontractorStore": 0
+        }
+      }
+    }
   ]
 }
