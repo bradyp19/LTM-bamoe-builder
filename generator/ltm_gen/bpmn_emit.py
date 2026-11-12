@@ -23,6 +23,9 @@ EVENT_TAGS = {"start": "startEvent", "end": "endEvent"}
 GATEWAY_TAG = {"xor": "exclusiveGateway"}
 
 
+GROUP_ID_ITEM = "_groupIdItem"
+
+
 def _tag(node_type: str) -> str:
     if node_type in TASK_TAGS:
         return TASK_TAGS[node_type]
@@ -89,6 +92,8 @@ def emit_bpmn(spec: dict) -> str:
         if v.get("elementType"):
             parts.append(f'  <bpmn2:itemDefinition id="{_raw_item_id(v["name"])}" '
                          f'structureRef="{v["type"]}"/>')
+    if any(n.get("candidateGroups") for n in spec["nodes"]):
+        parts.append(f'  <bpmn2:itemDefinition id="{GROUP_ID_ITEM}" structureRef="java.lang.String"/>')
     for n in spec["nodes"]:
         if n["type"] == "serviceTask":
             svc = n["service"]
@@ -151,6 +156,10 @@ def emit_bpmn(spec: dict) -> str:
                 item = _method_item(var, var_types) if n["type"] == "serviceTask" else _item_id(var)
                 parts.append(f'        <bpmn2:dataInput id="_{n["id"]}_in_{i}" name="{pname}" '
                              f'itemSubjectRef="{item}"/>')
+            group_id = f'_{n["id"]}_GroupId' if n.get("candidateGroups") else None
+            if group_id:
+                parts.append(f'        <bpmn2:dataInput id="{group_id}" name="GroupId" '
+                             f'itemSubjectRef="{GROUP_ID_ITEM}"/>')
             for i, var in enumerate(n.get("outputs", [])):
                 pname = "Result" if n["type"] == "serviceTask" else var
                 item = _method_item(var, var_types) if n["type"] == "serviceTask" else _item_id(var)
@@ -159,6 +168,8 @@ def emit_bpmn(spec: dict) -> str:
             parts.append('        <bpmn2:inputSet>')
             for i in range(len(n.get("inputs", []))):
                 parts.append(f'          <bpmn2:dataInputRefs>_{n["id"]}_in_{i}</bpmn2:dataInputRefs>')
+            if group_id:
+                parts.append(f'          <bpmn2:dataInputRefs>{group_id}</bpmn2:dataInputRefs>')
             parts.append('        </bpmn2:inputSet>')
             parts.append('        <bpmn2:outputSet>')
             for i in range(len(n.get("outputs", []))):
@@ -170,6 +181,15 @@ def emit_bpmn(spec: dict) -> str:
                 parts.append(f'        <bpmn2:sourceRef>{var}</bpmn2:sourceRef>')
                 parts.append(f'        <bpmn2:targetRef>_{n["id"]}_in_{i}</bpmn2:targetRef>')
                 parts.append('      </bpmn2:dataInputAssociation>')
+            if group_id:
+                groups = escape(",".join(n["candidateGroups"]))
+                parts.append('      <bpmn2:dataInputAssociation>')
+                parts.append(f'        <bpmn2:targetRef>{group_id}</bpmn2:targetRef>')
+                parts.append('        <bpmn2:assignment>')
+                parts.append(f'          <bpmn2:from xsi:type="bpmn2:tFormalExpression">{groups}</bpmn2:from>')
+                parts.append(f'          <bpmn2:to xsi:type="bpmn2:tFormalExpression">{group_id}</bpmn2:to>')
+                parts.append('        </bpmn2:assignment>')
+                parts.append('      </bpmn2:dataInputAssociation>')
             for i, var in enumerate(n.get("outputs", [])):
                 parts.append('      <bpmn2:dataOutputAssociation>')
                 parts.append(f'        <bpmn2:sourceRef>_{n["id"]}_out_{i}</bpmn2:sourceRef>')
@@ -179,8 +199,11 @@ def emit_bpmn(spec: dict) -> str:
         elif n["type"] == "xor":
             converging = len(incoming.get(n["id"], [])) > 1 and len(outgoing.get(n["id"], [])) == 1
             direction = "Converging" if converging else "Diverging"
+            default = next((flow_ids[id(f)] for f in outgoing.get(n["id"], [])
+                            if f.get("default")), None)
+            default_attr = f' default="{default}"' if default else ""
             parts.append(f'    <bpmn2:{tag} id="{n["id"]}" name={quoteattr(n["name"])} '
-                         f'gatewayDirection="{direction}">{doc}{inc}{out}')
+                         f'gatewayDirection="{direction}"{default_attr}>{doc}{inc}{out}')
             parts.append(f'    </bpmn2:{tag}>')
         else:
             parts.append(f'    <bpmn2:{tag} id="{n["id"]}" name={quoteattr(n["name"])}>{doc}{inc}{out}')
@@ -194,7 +217,8 @@ def emit_bpmn(spec: dict) -> str:
             cond = (f'\n      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression" '
                     f'language="http://www.java.com/java">{escape(f["condition"])}'
                     f'</bpmn2:conditionExpression>')
-        parts.append(f'    <bpmn2:sequenceFlow id="{flow_ids[id(f)]}" sourceRef="{f["from"]}" '
+        priority_attr = f' drools:priority="{f["priority"]}"' if f.get("priority") else ""
+        parts.append(f'    <bpmn2:sequenceFlow id="{flow_ids[id(f)]}"{priority_attr} sourceRef="{f["from"]}" '
                      f'targetRef="{f["to"]}"{name_attr}>{cond}')
         parts.append('    </bpmn2:sequenceFlow>')
 

@@ -28,8 +28,9 @@ from .facts import ProcessFacts, interfaces, process_models, record_types
 from .flow_text import camel_case, parse_text_flow
 
 SUPPLEMENT_KEYS = {"process", "figureTranscriptions", "design", "assumptions", "tests"}
-DESIGN_KEYS = {"process", "models", "typeMap", "nodes", "conditions"}
-NODE_DESIGN_KEYS = {"type", "service", "inputs", "outputs", "notes", "support"}
+DESIGN_KEYS = {"process", "models", "typeMap", "nodes", "conditions", "flowRules"}
+NODE_DESIGN_KEYS = {"type", "service", "inputs", "outputs", "notes", "support", "candidateGroups"}
+FLOW_RULE_KEYS = {"default", "priority"}
 NODE_TYPES = {"start", "end", "userTask", "serviceTask", "xor"}
 TASK_TYPES = {"userTask", "serviceTask"}
 
@@ -168,6 +169,24 @@ class _Builder:
             for key in sorted(set(d) - NODE_DESIGN_KEYS):
                 self.problem(f"design.nodes.{node_id}.{key} is not allowed "
                              f"(allowed: {', '.join(sorted(NODE_DESIGN_KEYS))})")
+            groups = d.get("candidateGroups")
+            if "candidateGroups" in d and not (
+                    isinstance(groups, list) and groups
+                    and all(isinstance(g, str) and g.strip() and "," not in g for g in groups)):
+                self.problem(f"design.nodes.{node_id}.candidateGroups must be a non-empty list "
+                             "of group names without commas")
+        for key, rule in self.design.get("flowRules", {}).items():
+            if not isinstance(rule, dict):
+                self.problem(f"design.flowRules['{key}'] must be an object")
+                continue
+            for k in sorted(set(rule) - FLOW_RULE_KEYS):
+                self.problem(f"design.flowRules['{key}'].{k} is not allowed "
+                             f"(allowed: {', '.join(sorted(FLOW_RULE_KEYS))})")
+            p = rule.get("priority")
+            if "priority" in rule and not (isinstance(p, int) and not isinstance(p, bool) and p > 0):
+                self.problem(f"design.flowRules['{key}'].priority must be a positive integer")
+            if "default" in rule and rule["default"] is not True:
+                self.problem(f"design.flowRules['{key}'].default must be true")
 
     def check_citations(self) -> None:
         for text in _strings(self.supplement):
@@ -594,12 +613,19 @@ class _Builder:
             if n.type in TASK_TYPES:
                 check_vars(n.id, inputs + outputs)
                 out["inputs"], out["outputs"] = inputs, outputs
+            if "candidateGroups" in d:
+                if n.type == "userTask":
+                    out["candidateGroups"] = list(d["candidateGroups"])
+                else:
+                    self.problem(f"design.nodes.{n.id}.candidateGroups: '{n.id}' is not a user task")
             spec_nodes.append(out)
 
         # flows
         by_id = {n.id: n for n in nodes}
         out_degree = {n.id: sum(1 for e in edges if e.source == n.id) for n in nodes}
         conditions: dict[str, str] = dict(self.design.get("conditions", {}))
+        flow_rules: dict[str, dict] = dict(self.design.get("flowRules", {}))
+        defaults: dict[str, int] = {}
         spec_flows = []
         for e in edges:
             flow_out = {"from": e.source, "to": e.target}
@@ -607,7 +633,22 @@ class _Builder:
                 flow_out["name"] = e.label
             key = f"{e.source}->{e.target}"
             ruled = conditions.pop(key, None)
-            if by_id[e.source].type == "xor" and out_degree[e.source] > 1:
+            rule = flow_rules.pop(key, {})
+            branching = by_id[e.source].type == "xor" and out_degree[e.source] > 1
+            if rule and not branching:
+                self.problem(f"design.flowRules['{key}']: that flow does not leave a "
+                             "branching gateway")
+            if rule.get("default"):
+                defaults[e.source] = defaults.get(e.source, 0) + 1
+                if ruled:
+                    self.problem(f"design.conditions['{key}']: the default flow cannot "
+                                 "also have a condition")
+                flow_out["default"] = True
+            if "priority" in rule:
+                flow_out["priority"] = rule["priority"]
+            if branching and rule.get("default"):
+                pass
+            elif branching:
                 condition = ruled or _java_condition(e.label, boolean_vars)
                 if condition:
                     flow_out["condition"] = condition
@@ -621,6 +662,17 @@ class _Builder:
             spec_flows.append(flow_out)
         for key in conditions:
             self.problem(f"design.conditions['{key}']: the flow has no such sequence flow")
+        for key in flow_rules:
+            self.problem(f"design.flowRules['{key}']: the flow has no such sequence flow")
+        for source, count in defaults.items():
+            if count > 1:
+                self.problem(f"gateway '{source}' has more than one default flow")
+        for source in {f["from"] for f in spec_flows if "priority" in f}:
+            unranked = [f["to"] for f in spec_flows
+                        if f["from"] == source and "priority" not in f]
+            if unranked:
+                self.problem(f"gateway '{source}': priorities must be given for every branch "
+                             f"(missing: {', '.join(unranked)}); unranked branches tie at 1")
 
         # tests
         tests = self.supplement.get("tests", [])
