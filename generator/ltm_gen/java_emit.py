@@ -194,6 +194,9 @@ def emit_process_test(spec: dict) -> str:
               if n["type"] == "serviceTask"}
     task_names = {n["id"]: n["name"] for n in spec["nodes"] if n["type"] == "userTask"}
     scenario_models: set[str] = set()
+    groups = sorted({g for n in spec["nodes"] for g in n.get("candidateGroups", [])})
+    identity = ('new StaticIdentityProvider("tester", java.util.List.of('
+                + ", ".join(f'"{g}"' for g in groups) + "))") if groups else 'new StaticIdentityProvider("tester")'
 
     # Single-task scenarios (no `steps`): one record variable, one store, one form.
     legacy = [t for t in spec["tests"] if "steps" not in t]
@@ -271,7 +274,7 @@ import io.quarkus.test.junit.QuarkusTest;
 class {p["id"][0].upper() + p["id"][1:]}ProcessTest {{
 
     private static final SecurityPolicy USER =
-            SecurityPolicy.of(new StaticIdentityProvider("tester"));
+            SecurityPolicy.of({identity});
 
     @Inject
     @Named("{p["id"]}")
