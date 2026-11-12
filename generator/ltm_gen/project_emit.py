@@ -65,12 +65,14 @@ def emit_project(spec: dict, skeleton_dir: Path, out_dir: Path) -> list[Path]:
             cls = svc["class"].split(".")[-1]
             var = variables[n["inputs"][0]]
             is_list = var["type"] == "java.util.List"
-            model = (var["elementType"] if is_list else var["type"]).split(".")[-1]
+            qualified = var["elementType"] if is_list else var["type"]
+            scalar = ".model." not in qualified  # e.g. java.lang.Boolean: no generated model
+            model = qualified if scalar else qualified.split(".")[-1]
             f = java_root / "service" / f"{cls}.java"
             f.parent.mkdir(parents=True, exist_ok=True)
             f.write_text(emit_store(pkg, cls, model, svc["operation"],
                                     "Write semantics unspecified; records calls for tests.",
-                                    param=var["name"], is_list=is_list))
+                                    param=var["name"], is_list=is_list, scalar=scalar))
             written.append(f)
 
     # process test
