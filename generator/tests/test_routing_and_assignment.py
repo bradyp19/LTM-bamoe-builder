@@ -59,6 +59,18 @@ class TestFlowPriority:
         root = _parse(SPEC)
         assert all(f.get(f"{DROOLS}priority") is None for f in root.iter(f"{BPMN}sequenceFlow"))
 
+    def test_layout_with_default_flow_and_priority_maintains_di_integrity(self):
+        spec = copy.deepcopy(SPEC)
+        f_end = _flow(spec, GATEWAY, "end1")
+        del f_end["condition"]
+        f_end["default"] = True
+        _flow(spec, GATEWAY, "allocationConfirmation")["priority"] = 1
+        root = _parse(spec)
+        shapes = [s for s in root.iter("{http://www.omg.org/spec/BPMN/20100524/DI}BPMNShape")]
+        edges = [e for e in root.iter("{http://www.omg.org/spec/BPMN/20100524/DI}BPMNEdge")]
+        assert len(shapes) == len(spec["nodes"])
+        assert len(edges) == len(spec["flows"])
+
 
 class TestCandidateGroups:
     def _spec(self, groups):

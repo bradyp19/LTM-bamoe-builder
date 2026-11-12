@@ -77,11 +77,17 @@ class TestStructure:
 
 
 ALLOC = json.loads((Path(__file__).parents[1] / "specs" / "allocations.json").read_text())
+TOGGLE = json.loads((Path(__file__).parents[1] / "specs" / "update_language_toggle.json").read_text())
 
 
 @pytest.fixture(scope="module")
 def alloc():
     return ET.fromstring(emit_bpmn(ALLOC))
+
+
+@pytest.fixture(scope="module")
+def toggle():
+    return ET.fromstring(emit_bpmn(TOGGLE))
 
 
 BPMNDI = "{http://www.omg.org/spec/BPMN/20100524/DI}"
@@ -131,7 +137,7 @@ def _get_edge_labels(root: ET.Element) -> dict[str, tuple[int, int, int, int]]:
 
 
 class TestBpmnLayout:
-    @pytest.mark.parametrize("spec_data", [SPEC, ALLOC])
+    @pytest.mark.parametrize("spec_data", [SPEC, ALLOC, TOGGLE])
     def test_no_two_shapes_overlap(self, spec_data):
         root = ET.fromstring(emit_bpmn(spec_data))
         shapes = _get_shape_bounds(root)
@@ -147,7 +153,7 @@ class TestBpmnLayout:
                     f"Shapes overlap: {id1} ({x1},{y1},{w1},{h1}) and {id2} ({x2},{y2},{w2},{h2})"
                 )
 
-    @pytest.mark.parametrize("spec_data", [SPEC, ALLOC])
+    @pytest.mark.parametrize("spec_data", [SPEC, ALLOC, TOGGLE])
     def test_all_nodes_and_flows_have_di_elements(self, spec_data):
         root = ET.fromstring(emit_bpmn(spec_data))
         shapes = _get_shape_bounds(root)
@@ -162,7 +168,7 @@ class TestBpmnLayout:
             assert flow_id in edges, f"Missing edge for flow {flow_id}"
             assert len(edges[flow_id]) >= 2, f"Edge {flow_id} has fewer than 2 waypoints"
 
-    @pytest.mark.parametrize("spec_data", [SPEC, ALLOC])
+    @pytest.mark.parametrize("spec_data", [SPEC, ALLOC, TOGGLE])
     def test_edge_waypoints_connect_to_source_and_target_bounds(self, spec_data):
         root = ET.fromstring(emit_bpmn(spec_data))
         shapes = _get_shape_bounds(root)
@@ -208,13 +214,13 @@ class TestBpmnLayout:
             if f.get("name"):
                 assert flow_id in labels, f"Flow {flow_id} with name {f['name']} should have BPMNLabel"
 
-    @pytest.mark.parametrize("spec_data", [SPEC, ALLOC])
+    @pytest.mark.parametrize("spec_data", [SPEC, ALLOC, TOGGLE])
     def test_deterministic_output(self, spec_data):
         out1 = emit_bpmn(spec_data)
         out2 = emit_bpmn(spec_data)
         assert out1 == out2
 
-    @pytest.mark.parametrize("spec_data", [SPEC, ALLOC])
+    @pytest.mark.parametrize("spec_data", [SPEC, ALLOC, TOGGLE])
     def test_standard_shape_sizes(self, spec_data):
         root = ET.fromstring(emit_bpmn(spec_data))
         shapes = _get_shape_bounds(root)
