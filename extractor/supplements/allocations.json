@@ -1,6 +1,9 @@
 {
   "process": "NSSOL Allocations",
   "design": {
+    "process": {
+      "descriptionTemplate": "NSSOL Allocations - #{projectInfo.projectName}"
+    },
     "models": {
       "NSSOL Projects": "ProjectRegistration",
       "NSSOL Employees": "Employee",
@@ -9,11 +12,18 @@
       "NSSOL Map Subcontractors": "MapSubcontractor"
     },
     "typeMap": {"DateTime": "java.time.LocalDateTime"},
+    "flowRules": {
+      "allocationMainScreenGateway->end1": {"default": true},
+      "allocationMainScreenGateway->employeeSearchScreen": {"priority": 1},
+      "allocationMainScreenGateway->subcontractorSearchScreen": {"priority": 2},
+      "allocationMainScreenGateway->allocationConfirmation": {"priority": 3}
+    },
     "nodes": {
       "allocationMainScreen": {
+        "candidateGroups": ["NP Users"],
         "outputs": ["assignedEmployees", "assignedSubcontractors", "isAddEmployee",
                     "isAddSubcontractor", "isAssign", "allocationCancel"],
-        "notes": "PROPOSAL (AL-7): outputs are the flags the buttons set (D03 ¶88–91) and the lists D04 ¶179–180 describe as passed back to PV. No documented assignee (AL-1).",
+        "notes": "PROPOSAL (AL-7): outputs are the flags the buttons set (D03 ¶88–91) and the lists D04 ¶179–180 describe as passed back to PV. Candidate group NP Users (AL-1).",
         "support": [
           {"cite": "D03 ¶88", "quote": "sets isAddEmployee=true"},
           {"cite": "D03 ¶91", "quote": "sets allocationCancel=true"},
@@ -22,24 +32,27 @@
         ]
       },
       "employeeSearchScreen": {
+        "candidateGroups": ["NP Users"],
         "outputs": ["selectedEmployees", "empCancel"],
-        "notes": "PROPOSAL (AL-7): outputs from D03 ¶101–102. No rule inputs are documented for this interface.",
+        "notes": "PROPOSAL (AL-7): outputs from D03 ¶101–102. Candidate group NP Users (AL-1). No rule inputs are documented for this interface.",
         "support": [
           {"cite": "D03 ¶101", "quote": "Selected employees stored in pv!selectedEmployees"},
           {"cite": "D03 ¶102", "quote": "[empCancel = true]"}
         ]
       },
       "subcontractorSearchScreen": {
+        "candidateGroups": ["NP Users"],
         "outputs": ["selectedSubcontractors", "SubconCancel"],
-        "notes": "PROPOSAL (AL-7): outputs from D03 ¶111–112. No rule inputs are documented for this interface.",
+        "notes": "PROPOSAL (AL-7): outputs from D03 ¶111–112. Candidate group NP Users (AL-1). No rule inputs are documented for this interface.",
         "support": [
           {"cite": "D03 ¶111", "quote": "Selected subcontractors stored in pv!selectedSubcontractors"},
           {"cite": "D03 ¶112", "quote": "[SubconCancel = true]"}
         ]
       },
       "allocationConfirmation": {
+        "candidateGroups": ["NP Users"],
         "outputs": ["assignedEmployees", "assignedSubcontractors"],
-        "notes": "PROPOSAL (AL-7): outputs from D04 ¶96. AL-C2 CONFLICT: D04 ¶97 documents a Back button; the diagram has no path back.",
+        "notes": "PROPOSAL (AL-7): outputs from D04 ¶96. Candidate group NP Users (AL-1). AL-C2: D04 ¶97 documents Back as form behaviour leaving the task open.",
         "support": [
           {"cite": "D04 ¶96", "quote": "saving the assigned employee/subcontractor lists to the process variables"},
           {"cite": "D04 ¶97", "quote": "**Back** button: returns to allocation screen"}
@@ -68,44 +81,44 @@
     }
   },
   "assumptions": [
-    {"id": "AL-1", "text": "No task assignee/candidate group documented; the four user tasks are left unassigned (same gap as SR-3)."},
-    {"id": "AL-2", "text": "Branch precedence and default are undocumented (D03 ¶93–115): nothing says which flag wins if several are true, or what happens if none is. Conditions are emitted in document order with no default flow.",
+    {"id": "AL-1", "text": "DRAFT-RESOLVED (pending user approval): candidate group NP Users assigned to all four user tasks; group choice is an analyst proposal, not documented."},
+    {"id": "AL-2", "text": "DRAFT-RESOLVED (pending user approval): cancel flow is default (ends without saving) and search/confirm flows have priorities 1–3; precedence and default are analyst rules, not documented (D03 ¶93–115).",
      "support": [
        {"cite": "D03 ¶93", "quote": "[allocationCancel = true]"},
        {"cite": "D03 ¶95", "quote": "[isAddEmployee = true]"},
        {"cite": "D03 ¶105", "quote": "[isAddSubcontractor = true]"},
        {"cite": "D03 ¶115", "quote": "[isAssign = true]"}
      ]},
-    {"id": "AL-3", "text": "Flag reset on loop-back is undocumented (D03 ¶102–103, ¶112–113): nothing clears isAddEmployee / isAddSubcontractor when a search screen returns, so the same branch is taken again unless the form resets the flag.",
+    {"id": "AL-3", "text": "DRAFT-RESOLVED (pending user approval): form contract requires the main-screen task to return all four flags on every completion, resetting prior loop-back flags (D03 ¶102–103, ¶112–113).",
      "support": [
        {"cite": "D03 ¶102–103", "quote": "back to Allocation Main Screen with selectedEmployees populated"},
        {"cite": "D03 ¶112–113", "quote": "back to Allocation Main Screen with selectedSubcontractors populated"}
      ]},
-    {"id": "AL-4", "text": "The two write nodes carry no task type in the diagram (D03 ¶124, ¶129); modelled as service tasks. MapEmployeeStore and MapSubcontractorStore are proposed test doubles; real write semantics unspecified (same gap as SR-4).",
+    {"id": "AL-4", "text": "DRAFT-RESOLVED (pending user approval): write nodes modelled as service tasks (D03 ¶124, ¶129) with MapEmployeeStore and MapSubcontractorStore test doubles; real write semantics unspecified.",
      "support": [
        {"cite": "D03 ¶124", "quote": "[Write Map Employee Records]"},
        {"cite": "D03 ¶129", "quote": "[Write Map Subcontractor Records]"}
      ]},
-    {"id": "AL-C1", "text": "CONFLICT: D03 ¶220 counts 3 forms (allocation + 2 search); the flow diagram has a fourth user task, Allocation Confirmation (D03 ¶118–119). Model follows the diagram.",
+    {"id": "AL-C1", "text": "DRAFT-RESOLVED (pending user approval): summary table at D03 ¶220 is out of date; model follows the diagram (D03 ¶118–119) and D04 ¶84–97 with 4 user tasks.",
      "support": [
        {"cite": "D03 ¶220", "quote": "| Forms Involved | 1 (registration) | 3 (allocation + 2 search) | 0 |"},
        {"cite": "D03 ¶118–119", "quote": "Interface: NSSOL_FRM_Allocation_Confirmation"}
      ]},
-    {"id": "AL-C2", "text": "CONFLICT: D04 ¶97 gives Allocation Confirmation a Back button returning to the allocation screen; the flow diagram shows no path back from it (D03 ¶118–124). Model follows the diagram: no back flow.",
+    {"id": "AL-C2", "text": "DRAFT-RESOLVED (pending user approval): Back on Allocation Confirmation (D04 ¶97) is form behaviour leaving the task open; model follows the diagram (D03 ¶118–124) with no back flow.",
      "support": [
        {"cite": "D04 ¶97", "quote": "**Back** button: returns to allocation screen"},
        {"cite": "D03 ¶118–124", "quote": "[Write Map Employee Records]"}
      ]},
-    {"id": "AL-5", "text": "Process name template is dynamic (D03 ¶49); the BPMN process name is the static model name.",
+    {"id": "AL-5", "text": "DRAFT-RESOLVED (pending user approval): dynamic process name template configured via descriptionTemplate (D03 ¶49).",
      "support": [
        {"cite": "D03 ¶49", "quote": "\"NSSOL Allocations - \" & pv!projectInfo[projectName]"}
      ]},
-    {"id": "AL-6", "text": "The documented projectInfo default (D03 ¶61) is not carried into the spec.",
+    {"id": "AL-6", "text": "DRAFT-RESOLVED (pending user approval): hardcoded dev default (D03 ¶61) dropped; projectInfo is required input.",
      "support": [
        {"cite": "D03 ¶61", "quote": "projectId = 3 (default for dev)"}
      ]},
-    {"id": "AL-7", "text": "Target-design proposals pending approval: class names (ProjectRegistration reused for NSSOL Projects; Employee, Subcontractor, MapEmployee, MapSubcontractor), DateTime as java.time.LocalDateTime, list variables as java.util.List, and every user-task output."},
-    {"id": "AL-8", "text": "Cancelling a search screen is documented as returning without selection (D04 ¶251); the merged return flow carries no condition, so nothing in the process enforces it.",
+    {"id": "AL-7", "text": "DRAFT-RESOLVED (pending user approval): target-design proposals approved: class names (ProjectRegistration reused for NSSOL Projects; Employee, Subcontractor, MapEmployee, MapSubcontractor), DateTime as java.time.LocalDateTime, list variables as java.util.List, and user-task outputs."},
+    {"id": "AL-8", "text": "DRAFT-RESOLVED (pending user approval): search-screen cancel without selection (D04 ¶251) is handled as form contract; merged return flow has no gateway condition.",
      "support": [
        {"cite": "D04 ¶251", "quote": "Cancel → returns without selection (sets `empCancel=true`)"}
      ]}
@@ -235,6 +248,29 @@
           "complete": {
             "allocationCancel": true
           }
+        }
+      ],
+      "expect": {
+        "status": "COMPLETED",
+        "saves": {
+          "MapEmployeeStore": 0,
+          "MapSubcontractorStore": 0
+        }
+      }
+    },
+    {
+      "name": "defaultFlow_noFlagsSetEndsWithoutSaving",
+      "start": {
+        "projectInfo": {
+          "projectId": 3,
+          "projectName": "Test Tower Construction",
+          "isActive": true
+        }
+      },
+      "steps": [
+        {
+          "task": "allocationMainScreen",
+          "complete": {}
         }
       ],
       "expect": {

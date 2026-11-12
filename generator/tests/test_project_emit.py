@@ -71,7 +71,7 @@ class TestGeneratedProjectCompilesAndRunsOnBamoe:
 
     def test_scenario_tests_use_one_work_item_per_step(self, allocations):
         src = (allocations / "src/test/java/nssol/AllocationsProcessTest.java").read_text()
-        assert src.count("@Test") == 3
+        assert src.count("@Test") == 4
         assert 'getName()).isEqualTo("Allocation Confirmation")' in src
         assert "step1_assignedEmployees0" in src and "step2_assignedEmployees0" in src
         assert "new ArrayList<>(List.of(" in src

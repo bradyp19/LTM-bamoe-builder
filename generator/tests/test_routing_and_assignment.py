@@ -13,6 +13,7 @@ from ltm_gen.bpmn_emit import emit_bpmn
 from ltm_gen.java_emit import emit_process_test
 
 SPEC = json.loads((Path(__file__).parents[1] / "specs" / "allocations.json").read_text())
+REGISTER_SPEC = json.loads((Path(__file__).parents[1] / "specs" / "register_project.json").read_text())
 BPMN = "{http://www.omg.org/spec/BPMN/20100524/MODEL}"
 DROOLS = "{http://www.jboss.org/drools}"
 GATEWAY = "allocationMainScreenGateway"
@@ -32,37 +33,34 @@ def _element(root, tag, element_id):
 
 class TestDefaultFlow:
     def test_gateway_names_its_default_flow_and_that_flow_has_no_condition(self):
-        spec = copy.deepcopy(SPEC)
-        flow = _flow(spec, GATEWAY, "end1")
-        del flow["condition"]
-        flow["default"] = True
-        root = _parse(spec)
+        root = _parse(SPEC)
         flow_id = f"_sf_{GATEWAY}_end1"
         assert _element(root, "exclusiveGateway", GATEWAY).get("default") == flow_id
         assert _element(root, "sequenceFlow", flow_id).find(f"{BPMN}conditionExpression") is None
 
     def test_no_default_attribute_without_a_default_flow(self):
-        root = _parse(SPEC)
+        root = _parse(REGISTER_SPEC)
         for gateway in root.iter(f"{BPMN}exclusiveGateway"):
             assert gateway.get("default") is None
 
 
 class TestFlowPriority:
     def test_priority_is_emitted_as_a_drools_attribute(self):
-        spec = copy.deepcopy(SPEC)
-        _flow(spec, GATEWAY, "allocationConfirmation")["priority"] = 1
-        root = _parse(spec)
-        flow = _element(root, "sequenceFlow", f"_sf_{GATEWAY}_allocationConfirmation")
+        root = _parse(SPEC)
+        flow = _element(root, "sequenceFlow", f"_sf_{GATEWAY}_employeeSearchScreen")
         assert flow.get(f"{DROOLS}priority") == "1"
 
     def test_no_priority_attribute_by_default(self):
-        root = _parse(SPEC)
+        root = _parse(REGISTER_SPEC)
         assert all(f.get(f"{DROOLS}priority") is None for f in root.iter(f"{BPMN}sequenceFlow"))
 
 
 class TestCandidateGroups:
     def _spec(self, groups):
         spec = copy.deepcopy(SPEC)
+        for n in spec["nodes"]:
+            if n.get("type") == "userTask":
+                n.pop("candidateGroups", None)
         next(n for n in spec["nodes"] if n["id"] == "allocationMainScreen")["candidateGroups"] = groups
         return spec
 
@@ -89,7 +87,7 @@ class TestCandidateGroups:
         assert all(d.get("name") != "GroupId" for d in task.iter(f"{BPMN}dataInput"))
 
     def test_no_group_input_by_default(self):
-        root = _parse(SPEC)
+        root = _parse(REGISTER_SPEC)
         assert all(d.get("name") != "GroupId" for d in root.iter(f"{BPMN}dataInput"))
 
     def test_generated_test_identity_belongs_to_the_groups(self):
@@ -98,7 +96,7 @@ class TestCandidateGroups:
                 'java.util.List.of("NP Administrators", "NP Users"))') in java
 
     def test_generated_test_identity_is_unchanged_without_groups(self):
-        java = emit_process_test(SPEC)
+        java = emit_process_test(REGISTER_SPEC)
         assert 'new StaticIdentityProvider("tester")' in java
 
 
@@ -114,4 +112,4 @@ class TestDescriptionTemplate:
         assert children.index(f"{BPMN}documentation") < children.index(f"{BPMN}extensionElements")
 
     def test_no_metadata_by_default(self):
-        assert "customDescription" not in emit_bpmn(SPEC)
+        assert "customDescription" not in emit_bpmn(REGISTER_SPEC)

@@ -51,6 +51,9 @@ class TestProcess:
             "D03 ¶75–134, D03 ¶59–71, D04 ¶168–237, D04 ¶241–251, "
             "D04 ¶255–265, D04 ¶83–97")
 
+    def test_description_template_is_carried(self, spec):
+        assert spec["process"]["descriptionTemplate"] == "NSSOL Allocations - #{projectInfo.projectName}"
+
 
 class TestVariables:
     def test_all_eleven_in_document_order(self, spec):
@@ -161,6 +164,12 @@ class TestNodes:
         with pytest.raises(ExtractionError, match="allocationConfirmation"):
             build_spec(real_docset, supplement)
 
+    def test_candidate_groups_on_all_four_user_tasks(self, spec):
+        user_tasks = [n for n in spec["nodes"] if n["type"] == "userTask"]
+        assert len(user_tasks) == 4
+        for ut in user_tasks:
+            assert ut["candidateGroups"] == ["NP Users"]
+
 
 class TestFlows:
     def test_flows(self, spec):
@@ -169,17 +178,18 @@ class TestFlows:
             {"from": "start", "to": MERGE},
             {"from": "allocationMainScreen", "to": GATEWAY},
             {"from": GATEWAY, "to": "end1", "name": "allocationCancel = true",
-             "condition": cond("allocationCancel")},
+             "default": True},
             {"from": GATEWAY, "to": "employeeSearchScreen", "name": "isAddEmployee = true",
-             "condition": cond("isAddEmployee")},
+             "condition": cond("isAddEmployee"), "priority": 1},
             {"from": "employeeSearchScreen", "to": MERGE,
              "name": "empCancel = true / confirm"},
             {"from": GATEWAY, "to": "subcontractorSearchScreen",
-             "name": "isAddSubcontractor = true", "condition": cond("isAddSubcontractor")},
+             "name": "isAddSubcontractor = true", "condition": cond("isAddSubcontractor"),
+             "priority": 2},
             {"from": "subcontractorSearchScreen", "to": MERGE,
              "name": "SubconCancel = true / confirm"},
             {"from": GATEWAY, "to": "allocationConfirmation", "name": "isAssign = true",
-             "condition": cond("isAssign")},
+             "condition": cond("isAssign"), "priority": 3},
             {"from": "allocationConfirmation", "to": "writeMapEmployeeRecords"},
             {"from": "writeMapEmployeeRecords", "to": "writeMapSubcontractorRecords"},
             {"from": "writeMapSubcontractorRecords", "to": "end2"},

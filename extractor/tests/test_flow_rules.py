@@ -107,6 +107,8 @@ class TestFlowRules:
 
 class TestCandidateGroups:
     def test_groups_are_carried_on_the_user_task(self, real_docset, supplement):
+        for n in supplement["design"]["nodes"].values():
+            n.pop("candidateGroups", None)
         supplement["design"]["nodes"]["allocationMainScreen"]["candidateGroups"] = ["NP Users"]
         spec = build_spec(real_docset, supplement).spec
         task = next(n for n in spec["nodes"] if n["id"] == "allocationMainScreen")
