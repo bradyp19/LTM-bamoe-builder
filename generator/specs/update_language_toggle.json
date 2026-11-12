@@ -1,0 +1,136 @@
+{
+  "process": {
+    "id": "updateLanguageToggle",
+    "name": "NSSOL Update Language Toggle",
+    "packageName": "nssol",
+    "evidence": "D03 ¶179–190, D03 ¶173–175"
+  },
+  "models": {},
+  "variables": [
+    {
+      "name": "toggleValue",
+      "type": "java.lang.Boolean",
+      "evidence": "D03 ¶175"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start",
+      "doc": "Flow: D03 ¶180–181. Started inline from SAIL by NSSOL_GRID_Projects via a!startProcess3 (D03 ¶193–203), not by a record action."
+    },
+    {
+      "id": "updateConstant",
+      "type": "serviceTask",
+      "name": "Update Constant",
+      "doc": "Flow: D03 ¶184–186. TL-1: the diagram declares 'Script Task / Service Task'; modelled as a service task. LanguageToggleStore is a proposed test double standing in for the NSSOL_BOOL_LANGUAGE_TOGGLE constant (TL-2).",
+      "service": {
+        "class": "nssol.service.LanguageToggleStore",
+        "operation": "update"
+      },
+      "inputs": [
+        "toggleValue"
+      ],
+      "outputs": [
+        "toggleValue"
+      ]
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End",
+      "doc": "Flow: D03 ¶189."
+    }
+  ],
+  "flows": [
+    {
+      "from": "start",
+      "to": "updateConstant"
+    },
+    {
+      "from": "updateConstant",
+      "to": "end"
+    }
+  ],
+  "tests": [
+    {
+      "name": "toggleOn_writesTrue",
+      "start": {
+        "toggleValue": true
+      },
+      "steps": [],
+      "expect": {
+        "status": "COMPLETED",
+        "saves": {
+          "LanguageToggleStore": 1
+        },
+        "savedValues": {
+          "LanguageToggleStore": true
+        }
+      }
+    },
+    {
+      "name": "toggleOff_writesFalse",
+      "start": {
+        "toggleValue": false
+      },
+      "steps": [],
+      "expect": {
+        "status": "COMPLETED",
+        "saves": {
+          "LanguageToggleStore": 1
+        },
+        "savedValues": {
+          "LanguageToggleStore": false
+        }
+      }
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "TL-1",
+      "text": "The flow node is declared 'Script Task / Service Task' (D03 ¶184), so its type is undecided in the source. Modelled as a service task bound to a CDI bean."
+    },
+    {
+      "id": "TL-2",
+      "text": "BAMOE has no Appian constants. LanguageToggleStore (proposed test double) records the value written to NSSOL_BOOL_LANGUAGE_TOGGLE; where the global value is persisted and how the interfaces read it back is unspecified (D03 ¶185–186, D06 ¶101). The task returns toggleValue unchanged."
+    },
+    {
+      "id": "TL-3",
+      "text": "toggleValue is documented as not required and without a default (D03 ¶175); behaviour when it is null is undocumented, so it is passed to the write unchanged and no scenario covers it."
+    },
+    {
+      "id": "TL-4",
+      "text": "The flip happens in the caller, before the process starts: SAIL flips local!isToggleOn and passes the new value (D03 ¶196–203, D04 ¶128–130). The process flips nothing and the SAIL trigger is not modelled."
+    },
+    {
+      "id": "TL-5",
+      "text": "No start restriction is coded: the role map has no INITIATOR group (D03 ¶242), and D07 accepts this as a POC risk while suggesting a restriction to NP Administrators for production (D07 ¶134, ¶216). The dev profile has auth disabled (same gap as C3 for Register Project)."
+    },
+    {
+      "id": "TL-6",
+      "text": "Appian lifecycle attributes (timezone GMT+12, auto-archive 7 days, auto-delete 0 days, notifications) are not carried into the BPMN; the BAMOE skeleton has no equivalent."
+    },
+    {
+      "id": "TL-7",
+      "text": "Target-design proposals pending approval: service class nssol.service.LanguageToggleStore with operation update, taking and returning the Boolean toggleValue; scenarios are generated as start-only (the process has no user task)."
+    },
+    {
+      "id": "TL-C1",
+      "text": "CONFLICT: D03 ¶211 calls NSSOL_PM_UPDATE_LANGUAGE_TOGGLE a constant holding the process model reference; D04 ¶364 documents the same UUID suffix _2006990 as a 'Utility Interface'. Neither object is modelled (the process is started directly), so the flow is unaffected; what kind of object it is stays open."
+    },
+    {
+      "id": "TL-C2",
+      "text": "CONFLICT: D03 ¶165–166 and D07 ¶189 give auto-archive after 7 days and then immediate (0 days) deletion, while D03 ¶206 says the process 'self-deletes' right after running. Whether the instance disappears at once or on day 7 is not stated consistently. Not modelled (see TL-6)."
+    },
+    {
+      "id": "TL-C3",
+      "text": "CONFLICT: D01 ¶120 says the process persists 'the preference' (reads as per user); D02 ¶308 and D07 ¶134 say it is one global constant that changes the language for every user. Model follows the flow: one global write, no user key."
+    },
+    {
+      "id": "TL-C4",
+      "text": "CONFLICT: the SAIL control that starts the process is a globe icon link in D01 ¶120 and a labelled toolbar button ('Switch Language' / '言語切替') in D04 ¶125–126. UI only; the process is unaffected."
+    }
+  ]
+}

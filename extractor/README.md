@@ -54,8 +54,10 @@ Each one is added to the spec's assumptions as `T-n`:
 
 `tests` in the supplement are either single-task (`start` / `complete` /
 `expect`) or multi-step: `start`, `steps: [{task, complete}]` and
-`expect: {status, saves: {Store: n}, savedLists: {Store: size}}`. Tasks,
-variables and record fields are validated against the spec at extraction time.
+`expect: {status, saves: {Store: n}, savedLists: {Store: size}, savedValues: {Store: value}}`
+(`savedValues` is for a service task that saves a plain value such as a Boolean).
+A process without user tasks uses `"steps": []`. Tasks, variables and record
+fields are validated against the spec at extraction time.
 
 ## Modules
 
