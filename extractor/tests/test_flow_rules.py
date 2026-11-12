@@ -54,6 +54,17 @@ class TestFlowRules:
             "end1", "allocationConfirmation", "employeeSearchScreen",
             "subcontractorSearchScreen")] == [1, 2, 3, 4]
 
+    def test_default_flow_needs_no_priority(self, real_docset, supplement):
+        supplement["design"]["flowRules"] = {
+            f"{GATEWAY}->end1": {"default": True},
+            f"{GATEWAY}->allocationConfirmation": {"priority": 1},
+            f"{GATEWAY}->employeeSearchScreen": {"priority": 2},
+            f"{GATEWAY}->subcontractorSearchScreen": {"priority": 3},
+        }
+        spec = build_spec(real_docset, supplement).spec
+        assert "priority" not in flow(spec, GATEWAY, "end1")
+        assert flow(spec, GATEWAY, "end1")["default"] is True
+
     def test_priority_on_only_some_branches_is_an_error(self, real_docset, supplement):
         supplement["design"]["flowRules"] = {f"{GATEWAY}->end1": {"priority": 1}}
         with pytest.raises(ExtractionError, match="priorities must be given for every branch"):
@@ -112,4 +123,21 @@ class TestCandidateGroups:
     def test_groups_must_be_a_list_of_names_without_commas(self, real_docset, supplement, groups):
         supplement["design"]["nodes"]["allocationMainScreen"]["candidateGroups"] = groups
         with pytest.raises(ExtractionError, match="candidateGroups must be a non-empty list"):
+            build_spec(real_docset, supplement)
+
+
+class TestDescriptionTemplate:
+    def test_template_is_carried_to_the_process(self, real_docset, supplement):
+        supplement["design"]["process"] = {"descriptionTemplate": "NSSOL Allocations - #{projectInfo.projectName}"}
+        spec = build_spec(real_docset, supplement).spec
+        assert spec["process"]["descriptionTemplate"] == "NSSOL Allocations - #{projectInfo.projectName}"
+
+    def test_template_may_only_reference_declared_process_variables(self, real_docset, supplement):
+        supplement["design"]["process"] = {"descriptionTemplate": "x #{nobody.name}"}
+        with pytest.raises(ExtractionError, match="descriptionTemplate.*'nobody'.*not a declared process variable"):
+            build_spec(real_docset, supplement)
+
+    def test_template_must_be_a_string(self, real_docset, supplement):
+        supplement["design"]["process"] = {"descriptionTemplate": 3}
+        with pytest.raises(ExtractionError, match="descriptionTemplate must be a string"):
             build_spec(real_docset, supplement)

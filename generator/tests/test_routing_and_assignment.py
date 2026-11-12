@@ -100,3 +100,18 @@ class TestCandidateGroups:
     def test_generated_test_identity_is_unchanged_without_groups(self):
         java = emit_process_test(SPEC)
         assert 'new StaticIdentityProvider("tester")' in java
+
+
+class TestDescriptionTemplate:
+    def test_template_is_emitted_as_the_custom_description_metadata(self):
+        spec = copy.deepcopy(SPEC)
+        spec["process"]["descriptionTemplate"] = "NSSOL Allocations - #{projectInfo.projectName} & more"
+        root = _parse(spec)
+        process = root.find(f"{BPMN}process")
+        meta = next(m for m in process.iter(f"{DROOLS}metaData") if m.get("name") == "customDescription")
+        assert meta.find(f"{DROOLS}metaValue").text == "NSSOL Allocations - #{projectInfo.projectName} & more"
+        children = [c.tag for c in process]
+        assert children.index(f"{BPMN}documentation") < children.index(f"{BPMN}extensionElements")
+
+    def test_no_metadata_by_default(self):
+        assert "customDescription" not in emit_bpmn(SPEC)

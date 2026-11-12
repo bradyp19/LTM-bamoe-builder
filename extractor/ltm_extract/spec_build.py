@@ -436,6 +436,11 @@ class _Builder:
             self.problem(f"'{name}' has no application prefix to derive a package from; "
                          "set design.process.packageName")
 
+        template = process_design.get("descriptionTemplate")
+        if "descriptionTemplate" in process_design and not isinstance(template, str):
+            self.problem("design.process.descriptionTemplate must be a string")
+            template = None
+
         # types, variables, models
         type_map = {**FIELD_TYPES, **self.design.get("typeMap", {})}
         model_names: dict[str, str] = self.design.get("models", {})
@@ -478,6 +483,10 @@ class _Builder:
             entry["evidence"] = v.anchor.cite()
             variables.append(entry)
         var_names = {v.name for v in pf.variables}
+        for ref in sorted(set(re.findall(r"#\{\s*([A-Za-z_]\w*)", template or ""))):
+            if ref not in var_names:
+                self.problem(f"design.process.descriptionTemplate: '{ref}' is not a declared "
+                             f"process variable ({pf.variables_anchor.cite()})")
 
         models = {}
         unmapped: set[str] = set()
@@ -669,10 +678,10 @@ class _Builder:
                 self.problem(f"gateway '{source}' has more than one default flow")
         for source in {f["from"] for f in spec_flows if "priority" in f}:
             unranked = [f["to"] for f in spec_flows
-                        if f["from"] == source and "priority" not in f]
+                        if f["from"] == source and "priority" not in f and not f.get("default")]
             if unranked:
                 self.problem(f"gateway '{source}': priorities must be given for every branch "
-                             f"(missing: {', '.join(unranked)}); unranked branches tie at 1")
+                             f"except the default flow (missing: {', '.join(unranked)})")
 
         # tests
         tests = self.supplement.get("tests", [])
@@ -719,9 +728,12 @@ class _Builder:
         evidence = [flow_cite]
         if pf.variables_anchor:
             evidence.append(pf.variables_anchor.cite())
+        process_out = {"id": process_id, "name": name, "packageName": package,
+                       "evidence": ", ".join(evidence + interface_cites)}
+        if template:
+            process_out["descriptionTemplate"] = template
         spec = {
-            "process": {"id": process_id, "name": name, "packageName": package,
-                        "evidence": ", ".join(evidence + interface_cites)},
+            "process": process_out,
             "models": models,
             "variables": variables,
             "nodes": spec_nodes,

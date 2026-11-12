@@ -127,6 +127,12 @@ def emit_bpmn(spec: dict) -> str:
     if doc_items:
         label = "Open items and assumptions" if spec.get("assumptions") else "Node documentation"
         parts.append(f'    <bpmn2:documentation>{label} — {escape(" / ".join(doc_items))}</bpmn2:documentation>')
+    if p.get("descriptionTemplate"):
+        parts.append('    <bpmn2:extensionElements>')
+        parts.append('      <drools:metaData name="customDescription">')
+        parts.append(f'        <drools:metaValue>{escape(p["descriptionTemplate"])}</drools:metaValue>')
+        parts.append('      </drools:metaData>')
+        parts.append('    </bpmn2:extensionElements>')
     for v in spec["variables"]:
         parts.append(f'    <bpmn2:property id="{v["name"]}" itemSubjectRef="{_item_id(v["name"])}"/>')
     parts.append("")
