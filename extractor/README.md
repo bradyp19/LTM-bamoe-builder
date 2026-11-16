@@ -59,6 +59,10 @@ Each one is added to the spec's assumptions as `T-n`:
 
 - A process model, record type or interface documented twice is an error when
   the spec uses that name (the first one is never silently kept).
+- Interfaces are identified by their declared object type. Without type
+  metadata, interface/form ancestor headings are a fallback (underscores
+  are treated as separators). A missing referenced interface is an error,
+  never an excuse to silently drop its task inputs.
 - If the named process model is not found, headings that mention it but are not
   shaped `Process Model: <name>` are listed with their paragraph.
 

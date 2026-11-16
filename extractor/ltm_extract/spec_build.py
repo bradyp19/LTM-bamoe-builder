@@ -630,8 +630,8 @@ class _Builder:
                         interface_cites.append(iface.anchor.cite())
                 elif n.interface:
                     parts.append(f"Interface: {n.interface}.")
-                    self.note("interface-not-found",
-                              f"{n.id}: interface '{n.interface}' is not documented")
+                    self.problem(f"{n.id}: interface '{n.interface}' is not documented; "
+                                 "task inputs cannot be derived")
                 if n.source_cite:
                     parts.append(f"Flow: {n.source_cite}.")
                 rule_inputs = [r.name for r in iface.rule_inputs if r.name in var_names] \

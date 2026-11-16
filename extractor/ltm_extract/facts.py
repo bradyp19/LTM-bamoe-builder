@@ -20,6 +20,8 @@ PROCESS_HEADING_RE = re.compile(r"^Process Model:\s*(.+)$")
 RECORD_HEADING_RE = re.compile(r"^Record Type:\s*(.+?)(?:\s*\([^)]*\))?$")
 INTERFACE_HEADING_RE = re.compile(r"^\d+\.\s+([A-Za-z_]\w*)$")  # after backticks are removed
 INTERFACE_SCOPE_RE = re.compile(r"\b(?:interfaces?|forms?)\b", re.IGNORECASE)
+OBJECT_TYPE_RE = re.compile(r"^\*\*Type:\*\*\s*(.+)$")
+INTERFACE_TYPE_RE = re.compile(r"^(?:form|grid|section|chart|utility\s+interface)\b", re.IGNORECASE)
 INLINE_FIELDS_RE = re.compile(r"^\*\*Fields:\*\*\s*(.+)$")
 INLINE_FIELD_RE = re.compile(r"`(\w+)`\s*\(([^)]*)\)")
 FENCE_RE = re.compile(r"^\s*```")
@@ -246,13 +248,20 @@ def record_types(docset: DocSet) -> dict[str, RecordTypeFacts]:
     return out
 
 
+def _is_interface(section: Section, ancestors: list[Section]) -> bool:
+    declared_type = next((m.group(1).strip().strip("`") for p in section.paragraphs
+                          if (m := OBJECT_TYPE_RE.match(p.text.strip()))), None)
+    if declared_type is not None:
+        return bool(INTERFACE_TYPE_RE.match(declared_type))
+    return any(INTERFACE_SCOPE_RE.search(a.title.replace("_", " ")) for a in ancestors)
+
+
 def interfaces(docset: DocSet) -> dict[str, InterfaceFacts]:
     out: dict[str, InterfaceFacts] = {}
     for doc in docset.documents:
         for i, section in enumerate(docset.sections(doc)):
             m = INTERFACE_HEADING_RE.match(section.title.replace("`", ""))
-            if not m or not any(INTERFACE_SCOPE_RE.search(a.title)
-                                for a in docset.ancestors(doc, i)):
+            if not m or not _is_interface(section, docset.ancestors(doc, i)):
                 continue
             anchor_ = _content_anchor(doc, docset.span(doc, i))
             if m.group(1) in out:
