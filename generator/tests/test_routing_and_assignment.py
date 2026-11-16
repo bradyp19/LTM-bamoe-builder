@@ -100,6 +100,31 @@ class TestCandidateGroups:
         task = _element(root, "userTask", "employeeSearchScreen")
         assert all(d.get("name") != "GroupId" for d in task.iter(f"{BPMN}dataInput"))
 
+    def test_group_id_variable_keeps_its_own_type_and_unique_id(self):
+        spec = self._spec(["NP Users"])
+        spec["variables"].append({"name": "groupId", "type": "java.lang.Integer"})
+        root = _parse(spec)
+        ids = [e.get("id") for e in root.iter() if e.get("id")]
+        assert len(ids) == len(set(ids))
+        variable = _element(root, "property", "groupId")
+        variable_type = _element(root, "itemDefinition", variable.get("itemSubjectRef"))
+        assert variable_type.get("structureRef") == "java.lang.Integer"
+        for group in root.iter(f"{BPMN}dataInput"):
+            if group.get("name") == "GroupId":
+                group_type = _element(root, "itemDefinition", group.get("itemSubjectRef"))
+                assert group_type.get("structureRef") == "java.lang.String"
+                assert group_type is not variable_type
+
+    def test_group_item_fallback_avoids_variable_and_node_ids(self):
+        spec = self._spec(["NP Users"])
+        spec["variables"] += [
+            {"name": "groupId", "type": "java.lang.Integer"},
+            {"name": "_groupIdItem_2", "type": "java.lang.Integer"}]
+        spec["nodes"].append({"id": "_groupIdItem_3", "type": "end", "name": "Extra End"})
+        root = _parse(spec)
+        ids = [e.get("id") for e in root.iter() if e.get("id")]
+        assert len(ids) == len(set(ids))
+
     def test_no_group_input_by_default(self):
         root = _parse(SPEC)
         assert all(d.get("name") != "GroupId" for d in root.iter(f"{BPMN}dataInput"))

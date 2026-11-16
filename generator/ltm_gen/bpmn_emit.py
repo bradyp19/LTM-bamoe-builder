@@ -62,10 +62,25 @@ def _method_item(var: str, var_types: dict) -> str:
     return _raw_item_id(var) if var_types[var].get("elementType") else _item_id(var)
 
 
+def _group_item_id(spec: dict) -> str:
+    used = {spec["process"]["id"], f'_{spec["process"]["id"]}'}
+    used.update(n["id"] for n in spec["nodes"])
+    for v in spec["variables"]:
+        used.update((v["name"], _item_id(v["name"])))
+        if v.get("elementType"):
+            used.add(_raw_item_id(v["name"]))
+    candidate, suffix = GROUP_ID_ITEM, 2
+    while candidate in used:
+        candidate = f"{GROUP_ID_ITEM}_{suffix}"
+        suffix += 1
+    return candidate
+
+
 def emit_bpmn(spec: dict) -> str:
     p = spec["process"]
     nodes = {n["id"]: n for n in spec["nodes"]}
     var_types = {v["name"]: v for v in spec["variables"]}
+    group_item_id = _group_item_id(spec)
 
     parts = [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -94,7 +109,7 @@ def emit_bpmn(spec: dict) -> str:
             parts.append(f'  <bpmn2:itemDefinition id="{_raw_item_id(v["name"])}" '
                          f'structureRef="{v["type"]}"/>')
     if any(n.get("candidateGroups") for n in spec["nodes"]):
-        parts.append(f'  <bpmn2:itemDefinition id="{GROUP_ID_ITEM}" structureRef="java.lang.String"/>')
+        parts.append(f'  <bpmn2:itemDefinition id="{group_item_id}" structureRef="java.lang.String"/>')
     for n in spec["nodes"]:
         if n["type"] == "serviceTask":
             svc = n["service"]
@@ -166,7 +181,7 @@ def emit_bpmn(spec: dict) -> str:
             group_id = f'_{n["id"]}_GroupId' if n.get("candidateGroups") else None
             if group_id:
                 parts.append(f'        <bpmn2:dataInput id="{group_id}" name="GroupId" '
-                             f'itemSubjectRef="{GROUP_ID_ITEM}"/>')
+                             f'itemSubjectRef="{group_item_id}"/>')
             for i, var in enumerate(n.get("outputs", [])):
                 pname = "Result" if n["type"] == "serviceTask" else var
                 item = _method_item(var, var_types) if n["type"] == "serviceTask" else _item_id(var)
