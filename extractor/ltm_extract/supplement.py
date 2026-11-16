@@ -262,12 +262,11 @@ def shape_problems(supplement, builtin_types: set[str]) -> list[str]:
                 s.bad(f"{path}.expect.status", f"must be one of {sorted(INSTANCE_STATES)}")
             saves = expect.get("saves", 0)
             if "steps" in t:
-                counts = s.obj(saves, f"{path}.expect.saves")
-                counts = {**counts, **s.obj(expect.get("savedLists", {}),
-                                           f"{path}.expect.savedLists")}
-                for store, count in counts.items():
-                    if type(count) is not int or count < 0:
-                        s.bad(f"{path}.expect.{store}", "must be a count")
+                for key in ("saves", "savedLists"):
+                    counts = s.obj(expect.get(key, {}), f"{path}.expect.{key}")
+                    for store, count in counts.items():
+                        if type(count) is not int or count < 0:
+                            s.bad(f"{path}.expect.{key}.{store}", "must be a count")
                 s.obj(expect.get("savedValues", {}), f"{path}.expect.savedValues")
             elif type(saves) is not int or saves < 0:
                 s.bad(f"{path}.expect.saves", "must be a count")

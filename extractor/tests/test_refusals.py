@@ -603,6 +603,25 @@ class TestCombinedBuildRegressions:
         supplement["tests"][0]["start"]["order"] = [None]
         refused(docs, supplement, "start.order[0] must be an object of Orders fields")
 
+    @pytest.mark.parametrize("bad_count", ["many", True, -1, [], None])
+    def test_saved_list_count_cannot_hide_invalid_save_count(self, docset, bad_count):
+        supplement = approve_supplement()
+        supplement["tests"] = [{
+            "name": "approves", "start": {"order": {"orderId": 7}}, "steps": [],
+            "expect": {"status": "COMPLETED", "saves": {"OrderStore": bad_count},
+                       "savedLists": {"OrderStore": 1}}}]
+        refused(docset, supplement, "expect.saves.OrderStore: must be a count")
+
+    def test_both_count_fields_are_reported_independently(self, docset):
+        supplement = approve_supplement()
+        supplement["tests"] = [{
+            "name": "approves", "start": {}, "steps": [],
+            "expect": {"status": "COMPLETED", "saves": {"OrderStore": "many"},
+                       "savedLists": {"OrderStore": -1}}}]
+        found = problems(docset, supplement)
+        assert any("expect.saves.OrderStore: must be a count" in p for p in found)
+        assert any("expect.savedLists.OrderStore: must be a count" in p for p in found)
+
 
 class TestCli:
     def run(self, docset, tmp_path, supplement, capsys, out=None):
