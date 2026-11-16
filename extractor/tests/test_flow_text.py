@@ -207,3 +207,93 @@ class TestDiagnostics:
         text = "START\n  ▼\n[User Task: Review]\n  ▼\n[User Task: Review]\n  ▼\nEND"
         g = parse_text_flow(paras(text))
         assert [n.key for n in g.nodes] == ["start", "review", "review2", "end"]
+
+
+class TestBranchScopes:
+    """Review findings: branch groups must not outlive the node that owns them."""
+
+    def test_later_top_level_group_belongs_to_its_own_node(self):
+        text = ("START\n  ▼\n[User Task: A]\n  ├──[cancelA]──▶ END\n  └──[continueA]──▶\n"
+                "        ▼\n      [User Task: B]\n        ▼\n[User Task: C]\n"
+                "  ├──[cancelC]──▶ END\n  └──[continueC]──▶\n        ▼\n"
+                "      [User Task: D]\n        ▼\n       END")
+        g = parse_text_flow(paras(text))
+        assert g.diagnostics == []
+        assert edges(g) == [
+            ("start", "a", None),
+            ("a", "end1", "cancelA"),
+            ("a", "b", "continueA"),
+            ("b", "c", None),
+            ("c", "end2", "cancelC"),
+            ("c", "d", "continueC"),
+            ("d", "end3", None),
+        ]
+
+    def test_mainline_continues_past_a_side_branch(self):
+        text = ("START\n  ▼\n[User Task: A]\n  ├──[cancel]──▶ END\n  │\n  ▼\n"
+                "[User Task: B]\n  ▼\nEND")
+        g = parse_text_flow(paras(text))
+        assert g.diagnostics == []
+        assert edges(g) == [("start", "a", None), ("a", "end1", "cancel"),
+                            ("a", "b", None), ("b", "end2", None)]
+
+    def test_mainline_continuation_does_not_come_from_a_nested_node(self):
+        text = ("START\n  ▼\n[User Task: A]\n  ├──[x]──▶\n  │     ▼\n  │   [User Task: B]\n"
+                "  │\n  ▼\n[User Task: C]\n  ▼\nEND")
+        g = parse_text_flow(paras(text))
+        assert ("a", "c", None) in edges(g)
+        assert ("b", "c", None) not in edges(g)
+
+    def test_branch_after_the_last_branch_is_flagged(self):
+        text = ("START\n  ▼\n[User Task: A]\n  ├──[x]──▶ END\n  └──[y]──▶ END\n"
+                "  ├──[z]──▶ END")
+        g = parse_text_flow(paras(text))
+        assert [d.code for d in g.diagnostics] == ["flow-branch-after-last"]
+        assert all(e.label != "z" for e in g.edges)
+
+    def test_three_deep_nesting(self):
+        text = ("START\n  ▼\n[User Task: A]\n  ├──[a1]──▶\n  │     ▼\n  │   [User Task: B]\n"
+                "  │     ├──[b1]──▶\n  │     │     ▼\n  │     │   [User Task: C]\n"
+                "  │     │     ├──[c1]──▶ END\n  │     │     └──[c2]──▶ back to B\n"
+                "  │     └──[b2]──▶ back to A\n  └──[a2]──▶ END")
+        g = parse_text_flow(paras(text))
+        assert g.diagnostics == []
+        assert edges(g) == [
+            ("start", "a", None), ("a", "b", "a1"), ("b", "c", "b1"),
+            ("c", "end1", "c1"), ("c", "b", "c2"), ("b", "a", "b2"), ("a", "end2", "a2")]
+
+
+class TestNothingIsSilentlyDropped:
+    def test_unlabelled_branch_is_an_edge(self):
+        text = ("START\n  ▼\n[User Task: A]\n  ├──▶ END\n  └──[go = true]──▶\n       ▼\n"
+                "      [User Task: B]\n       ▼\n      END")
+        g = parse_text_flow(paras(text))
+        assert g.diagnostics == []
+        assert ("a", "end1", None) in edges(g)
+        assert g.nodes[1].annotations == []
+
+    def test_flow_shaped_line_that_cannot_be_parsed_is_flagged(self):
+        for line in ["  ├──[a = true]── END", "  [User Task: B] ──▶ [User Task: C]",
+                     "  └── somewhere"]:
+            text = "START\n  ▼\n[User Task: A]\n" + line
+            g = parse_text_flow(paras(text))
+            assert [d.code for d in g.diagnostics] == ["flow-unparsed-line"], line
+            assert g.diagnostics[0].paragraph_index == 3
+
+    def test_ambiguous_back_reference_is_flagged(self):
+        text = ("START\n  ▼\n[User Task: Review]\n  ▼\n[User Task: Review]\n"
+                "  ├──[retry]──▶ back to Review\n  └──[done]──▶ END")
+        g = parse_text_flow(paras(text))
+        assert [d.code for d in g.diagnostics] == ["flow-ambiguous-target"]
+        assert all(e.label != "retry" for e in g.edges)
+
+    def test_task_named_end_keeps_its_own_key(self):
+        g = parse_text_flow(paras("START\n  ▼\n[User Task: End]\n  ▼\nEND"))
+        keys = [n.key for n in g.nodes]
+        assert len(keys) == len(set(keys)) == 3
+        assert edges(g) == [("start", keys[1], None), (keys[1], keys[2], None)]
+        assert g.nodes[1].kind == "userTask" and g.nodes[2].kind == "end"
+
+    def test_uniform_indentation_does_not_change_the_graph(self):
+        shifted = "\n".join("    " + line for line in ALLOCATIONS.split("\n"))
+        assert edges(parse_text_flow(paras(shifted))) == edges(parse_text_flow(paras(ALLOCATIONS)))

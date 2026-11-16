@@ -591,7 +591,7 @@
       "id": "start",
       "type": "start",
       "name": "Start",
-      "doc": "Flow: D03 ¶76–77."
+      "doc": "Flow: D03 ¶76–77. Trigger: record action 'Open Allocation' on NSSOL Projects, passing projectInfo (D03 ¶254, D06 ¶174)."
     },
     {
       "id": "allocationMainScreenMerge",
@@ -640,7 +640,7 @@
       "id": "employeeSearchScreen",
       "type": "userTask",
       "name": "Employee Search Screen",
-      "doc": "Interface: NSSOL_GRID_Employee_Search_Screen (D04 ¶241–251). Flow: D03 ¶98–101. PROPOSAL (AL-7): outputs from D03 ¶101–102. No rule inputs are documented for this interface.",
+      "doc": "Interface: NSSOL_GRID_Employee_Search_Screen (D04 ¶241–251). Flow: D03 ¶98–101. PROPOSAL (AL-7): outputs from D03 ¶101–102. D04 lists no rule inputs for this interface; D06 ¶182 says process variables are passed to it as ri! without naming them, so no inputs are bound (AL-12).",
       "inputs": [],
       "outputs": [
         "selectedEmployees",
@@ -651,7 +651,7 @@
       "id": "subcontractorSearchScreen",
       "type": "userTask",
       "name": "Subcontractor Search Screen",
-      "doc": "Interface: NSSOL_GRID_Subcontractor_Search_Screen (D04 ¶255–265). Flow: D03 ¶108–111. PROPOSAL (AL-7): outputs from D03 ¶111–112. No rule inputs are documented for this interface.",
+      "doc": "Interface: NSSOL_GRID_Subcontractor_Search_Screen (D04 ¶255–265). Flow: D03 ¶108–111. PROPOSAL (AL-7): outputs from D03 ¶111–112. D04 lists no rule inputs for this interface; D06 ¶183 says process variables are passed to it as ri! without naming them, so no inputs are bound (AL-12).",
       "inputs": [],
       "outputs": [
         "selectedSubcontractors",
@@ -662,20 +662,17 @@
       "id": "allocationConfirmation",
       "type": "userTask",
       "name": "Allocation Confirmation",
-      "doc": "Interface: NSSOL_FRM_Allocation_Confirmation (D04 ¶83–97). Flow: D03 ¶118–121. Inputs: rule inputs at D04 ¶89–91. PROPOSAL (AL-7): outputs from D04 ¶96. AL-C2 CONFLICT: D04 ¶97 documents a Back button; the diagram has no path back.",
+      "doc": "Interface: NSSOL_FRM_Allocation_Confirmation (D04 ¶83–97). Flow: D03 ¶118–121. Inputs: rule inputs at D04 ¶89–91. AL-C3 CONFLICT: D04 ¶96 says Submit saves the assigned lists to the process variables, but the form's only rule input is projectInfo (D04 ¶89–91) and D06 ¶184 calls it a read-only summary; no outputs are bound until this is resolved. AL-C2 CONFLICT: D04 ¶97 documents a Back button; the diagram has no path back.",
       "inputs": [
         "projectInfo"
       ],
-      "outputs": [
-        "assignedEmployees",
-        "assignedSubcontractors"
-      ]
+      "outputs": []
     },
     {
       "id": "writeMapEmployeeRecords",
       "type": "serviceTask",
       "name": "Write Map Employee Records",
-      "doc": "Flow: D03 ¶124–126. AL-4: untyped in the diagram; MapEmployeeStore is a proposed test double. Saves assignedEmployees to NSSOL Map Employees (D03 ¶125–126); write semantics unspecified.",
+      "doc": "Flow: D03 ¶124–126. AL-4: untyped in the diagram; MapEmployeeStore is a proposed test double. Saves assignedEmployees to NSSOL Map Employees (D03 ¶125); the documented record contents are in AL-9.",
       "service": {
         "class": "nssol.service.MapEmployeeStore",
         "operation": "save"
@@ -691,7 +688,7 @@
       "id": "writeMapSubcontractorRecords",
       "type": "serviceTask",
       "name": "Write Map Subcontractor Records",
-      "doc": "Flow: D03 ¶129–130. AL-4: untyped in the diagram; MapSubcontractorStore is a proposed test double. Saves assignedSubcontractors to NSSOL Map Subcontractors (D03 ¶130); write semantics unspecified.",
+      "doc": "Flow: D03 ¶129–130. AL-4: untyped in the diagram; MapSubcontractorStore is a proposed test double. Saves assignedSubcontractors to NSSOL Map Subcontractors (D03 ¶130); record contents are not documented (AL-9).",
       "service": {
         "class": "nssol.service.MapSubcontractorStore",
         "operation": "save"
@@ -830,24 +827,7 @@
         },
         {
           "task": "allocationConfirmation",
-          "complete": {
-            "assignedEmployees": [
-              {
-                "employeeMappedId": 1,
-                "projectId": 3,
-                "employeeId": 10,
-                "role": "Site Manager"
-              }
-            ],
-            "assignedSubcontractors": [
-              {
-                "subconMappedId": 1,
-                "projectId": 3,
-                "subconId": 20,
-                "companyName": "Acme Subcontracting"
-              }
-            ]
-          }
+          "complete": {}
         }
       ],
       "expect": {
@@ -913,7 +893,7 @@
     },
     {
       "id": "AL-2",
-      "text": "Branch precedence and default are undocumented (D03 ¶93–115): nothing says which flag wins if several are true, or what happens if none is. Conditions are emitted in document order with no default flow."
+      "text": "Branch precedence and default are undocumented (D03 ¶93–115): nothing says which flag wins if several are true, or what happens if none is. All four flags default to null (D03 ¶66–69). Conditions are emitted in document order with no default flow."
     },
     {
       "id": "AL-3",
@@ -921,7 +901,7 @@
     },
     {
       "id": "AL-4",
-      "text": "The two write nodes carry no task type in the diagram (D03 ¶124, ¶129); modelled as service tasks. MapEmployeeStore and MapSubcontractorStore are proposed test doubles; real write semantics unspecified (same gap as SR-4)."
+      "text": "The two write nodes carry no task type in the diagram (D03 ¶124, ¶129); modelled as service tasks. MapEmployeeStore and MapSubcontractorStore are proposed test doubles (same gap as SR-4)."
     },
     {
       "id": "AL-C1",
@@ -930,6 +910,18 @@
     {
       "id": "AL-C2",
       "text": "CONFLICT: D04 ¶97 gives Allocation Confirmation a Back button returning to the allocation screen; the flow diagram shows no path back from it (D03 ¶118–124). Model follows the diagram: no back flow."
+    },
+    {
+      "id": "AL-C3",
+      "text": "CONFLICT: D04 ¶96 says the Allocation Confirmation Submit button saves the assigned employee/subcontractor lists to the process variables; its only rule input is projectInfo (D04 ¶89–91) and D06 ¶184 describes it as a read-only summary. The main screen already passes both lists back (D04 ¶179–180). No outputs are bound on the confirmation task."
+    },
+    {
+      "id": "AL-C4",
+      "text": "CONFLICT (start permissions; same as C3 in the Register Project packet): D03 ¶242 says the process models are open to all authenticated users; D07 ¶96 says NP Users cannot start instances, while D07 ¶98 makes record-action security the gate and D07 ¶115 lets NP Users see Allocate. Not modelled."
+    },
+    {
+      "id": "AL-C5",
+      "text": "CONFLICT (form, not flow): the allocation colour boundary at exactly 70% is green in D02 ¶179–180 and orange in D02 ¶292–293 and D04 ¶231–232; red is #E64345 in D02 ¶178 and #FF0000 in D04 ¶230. Not modelled."
     },
     {
       "id": "AL-5",
@@ -945,7 +937,23 @@
     },
     {
       "id": "AL-8",
-      "text": "Cancelling a search screen is documented as returning without selection (D04 ¶251); the merged return flow carries no condition, so nothing in the process enforces it."
+      "text": "The merged return flows carry no condition, so empCancel and SubconCancel are set but never read: of the 3 cancel paths D03 ¶225 counts, only allocationCancel is routed. Cancelling the employee search is documented as returning without selection (D04 ¶251); for the subcontractor search D04 ¶265 says only that the flag is set. Nothing in the process enforces either."
+    },
+    {
+      "id": "AL-9",
+      "text": "Write contents are only partly documented. D03 ¶126 lists updatedBy and updatedOn among the fields of each written employee record, but the screen initialises only employee, project, createdBy, createdOn and isActive (D03 ¶140–145), D05 ¶343–344 sets updatedBy/updatedOn on record update, and D02 ¶287 says all four audit fields are captured at allocation time. The list written is existing rows merged with new ones (D03 ¶146), so the write is an upsert; whether soft-deleted rows reach it is not stated. Nothing is documented for the subcontractor records beyond D03 ¶130. Both lists default to null (D03 ¶64–65) and both writes are unconditional."
+    },
+    {
+      "id": "AL-10",
+      "text": "Lifecycle settings are not carried: GMT+12, archive 7 days after completion, delete 7 days after archival, no notifications (D03 ¶50–54)."
+    },
+    {
+      "id": "AL-11",
+      "text": "empCancel and SubconCancel are documented as internal, not parameters (D03 ¶70–71); the spec declares all variables alike."
+    },
+    {
+      "id": "AL-12",
+      "text": "The two search screens have no documented rule-input list: D04 gives none, and D06 ¶182–183 says process variables are passed to them as ri! without naming them. No inputs are bound."
     },
     {
       "id": "T-1",
@@ -953,15 +961,19 @@
     },
     {
       "id": "T-2",
-      "text": "Branches 'empCancel = true' and 'confirm' (D03 ¶102–103) both lead from 'Employee Search Screen' to 'Allocation Main Screen'; emitted as one flow with no condition."
+      "text": "Branches 'empCancel = true' and 'confirm' (D03 ¶102–103) both lead from 'Employee Search Screen' to 'Before Allocation Main Screen'; emitted as one flow with no condition."
     },
     {
       "id": "T-3",
-      "text": "Branches 'SubconCancel = true' and 'confirm' (D03 ¶112–113) both lead from 'Subcontractor Search Screen' to 'Allocation Main Screen'; emitted as one flow with no condition."
+      "text": "Branches 'SubconCancel = true' and 'confirm' (D03 ¶112–113) both lead from 'Subcontractor Search Screen' to 'Before Allocation Main Screen'; emitted as one flow with no condition."
     },
     {
       "id": "T-4",
       "text": "Merge gateway 'Before Allocation Main Screen' is synthesized: 3 flows (from 'Start', 'Employee Search Screen', 'Subcontractor Search Screen') reach 'Allocation Main Screen' and no merge gateway is documented; BAMOE does not accept several incoming flows on a task."
+    },
+    {
+      "id": "T-5",
+      "text": "Conditions read a null flag as not true, so '= false' also matches null; the documents do not say how a null flag is routed."
     }
   ]
 }

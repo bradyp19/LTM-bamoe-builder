@@ -65,7 +65,7 @@
        {"cite": "D03 ¶165", "quote": "| Auto-Archive | 7 days after completion |"},
        {"cite": "D07 ¶189", "quote": "| NSSOL Update Language Toggle | 7 days | **0 days** (immediate) | Utility — deleted instantly |"}
      ]},
-    {"id": "TL-C3", "text": "CONFLICT: D01 ¶120 says the process persists 'the preference' (reads as per user); D02 ¶308 and D07 ¶134 say it is one global constant that changes the language for every user. Model follows the flow: one global write, no user key.",
+    {"id": "TL-C3", "text": "CONFLICT: D01 ¶120 says the process persists 'the preference' (reads as per user); D07 ¶134 says it changes the language for every user. Model follows the flow: one global write, no user key.",
      "support": [
        {"cite": "D01 ¶120", "quote": "triggers the `NSSOL Update Language Toggle` process to persist the preference"},
        {"cite": "D07 ¶134", "quote": "Any NP User can change the language for all users application-wide"}

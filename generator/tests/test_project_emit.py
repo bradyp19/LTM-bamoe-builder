@@ -73,7 +73,8 @@ class TestGeneratedProjectCompilesAndRunsOnBamoe:
         src = (allocations / "src/test/java/nssol/AllocationsProcessTest.java").read_text()
         assert src.count("@Test") == 3
         assert 'getName()).isEqualTo("Allocation Confirmation")' in src
-        assert "step1_assignedEmployees0" in src and "step2_assignedEmployees0" in src
+        assert "step1_assignedEmployees0" in src
+        assert "step2_assignedEmployees0" not in src  # confirmation must not replace the lists
         assert "new ArrayList<>(List.of(" in src
         assert "import java.util.ArrayList;" in src
         assert "MapEmployeeStore.clear();" in src and "MapSubcontractorStore.clear();" in src

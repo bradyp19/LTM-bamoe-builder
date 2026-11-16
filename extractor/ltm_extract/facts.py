@@ -2,6 +2,8 @@
 
 Nothing here interprets or fills gaps. Process models, record types and
 interfaces are found by their heading shapes in whichever document holds them.
+A name defined more than once keeps its first definition and records where the
+others are, so that a caller can refuse to pick one.
 """
 
 from __future__ import annotations
@@ -16,7 +18,10 @@ from .docset import Anchor, DocSet, has_content
 
 PROCESS_HEADING_RE = re.compile(r"^Process Model:\s*(.+)$")
 RECORD_HEADING_RE = re.compile(r"^Record Type:\s*(.+?)(?:\s*\([^)]*\))?$")
-INTERFACE_HEADING_RE = re.compile(r"^\d+\.\s+([A-Za-z_]\w*)$")
+INTERFACE_HEADING_RE = re.compile(r"^\d+\.\s+([A-Za-z_]\w*)$")  # after backticks are removed
+INTERFACE_SCOPE = "interface"  # an enclosing heading must mention it
+INLINE_FIELDS_RE = re.compile(r"^\*\*Fields:\*\*\s*(.+)$")
+INLINE_FIELD_RE = re.compile(r"`(\w+)`\s*\(([^)]*)\)")
 FENCE_RE = re.compile(r"^\s*```")
 FIGURE_RE = re.compile(r"^(Figure\s+\d+)\b")
 PRIMARY_KEY_RE = re.compile(r"\*\*Primary Key:\*\*\s*`([^`]+)`")
@@ -49,15 +54,16 @@ class ProcessFacts:
     anchor: Anchor
     attributes: dict[str, tuple[str, Anchor]]
     variables: list[VariableFact]
-    variables_anchor: Anchor | None
+    variables_anchors: list[Anchor]
     flow: FlowSource
+    other_definitions: list[Anchor] = field(default_factory=list)
 
 
 @dataclass
 class FieldFact:
     name: str
     data_type: str
-    nullable: bool
+    nullable: bool | None  # None: not stated
     description: str
     anchor: Anchor
 
@@ -68,7 +74,8 @@ class RecordTypeFacts:
     anchor: Anchor
     primary_key: str | None
     fields: list[FieldFact]
-    fields_anchor: Anchor | None
+    fields_anchors: list[Anchor]
+    other_definitions: list[Anchor] = field(default_factory=list)
 
 
 @dataclass
@@ -92,19 +99,9 @@ class InterfaceFacts:
     name: str
     anchor: Anchor
     rule_inputs: list[RuleInputFact]
-    rule_inputs_anchor: Anchor | None
+    rule_inputs_anchors: list[Anchor]
     form_fields: list[FormFieldFact]
-
-
-def _register(out: dict, name: str, fact, kind: str, duplicates: list[str] | None) -> None:
-    """Store a fact by name. A second one with the same name is never silently
-    kept or dropped: it is reported through `duplicates` and the first one stays."""
-    if name in out:
-        if duplicates is not None:
-            duplicates.append(f"{kind} '{name}' is documented more than once "
-                              f"({out[name].anchor.cite()} and {fact.anchor.cite()})")
-        return
-    out[name] = fact
+    other_definitions: list[Anchor] = field(default_factory=list)
 
 
 def _clean(cell: str) -> str:
@@ -129,12 +126,9 @@ def _content_anchor(doc: str, span: list[Paragraph]) -> Anchor:
     return Anchor(doc, span[0].index, last.index)
 
 
-def _table_with(sections: list[Section], column: str) -> PipeTable | None:
-    for s in sections:
-        for t in s.tables:
-            if column in t.header:
-                return t
-    return None
+def _tables(sections: list[Section], *first_column: str) -> list[PipeTable]:
+    """Every table in these sections whose first column has one of the names."""
+    return [t for s in sections for t in s.tables if t.header and t.header[0] in first_column]
 
 
 def _flow_source(doc: str, own: Section, children: list[Section],
@@ -162,7 +156,7 @@ def _flow_source(doc: str, own: Section, children: list[Section],
     return FlowSource(kind="missing")
 
 
-def process_models(docset: DocSet, duplicates: list[str] | None = None) -> dict[str, ProcessFacts]:
+def process_models(docset: DocSet) -> dict[str, ProcessFacts]:
     out: dict[str, ProcessFacts] = {}
     for doc in docset.documents:
         for i, section in enumerate(docset.sections(doc)):
@@ -172,18 +166,22 @@ def process_models(docset: DocSet, duplicates: list[str] | None = None) -> dict[
             children = docset.children(doc, i)
             span = docset.span(doc, i)
 
+            name = m.group(1).strip()
+            anchor_ = _content_anchor(doc, span)
+            if name in out:
+                out[name].other_definitions.append(anchor_)
+                continue
+
             attributes = {}
-            attr_table = _table_with([section], "Attribute")
-            if attr_table:
+            for attr_table in _tables([section], "Attribute"):
                 for row, anchor in _rows(attr_table, doc):
                     attributes[_clean(row["Attribute"])] = (row.get("Value", "").strip(), anchor)
 
-            variables, variables_anchor = [], None
-            var_table = _table_with(
-                [s for s in children if s.title == "Process Variables"], "Variable")
-            if var_table:
-                variables_anchor = _table_anchor(var_table, doc)
-                known = {"Variable", "Type", "Parameter", "Required"}
+            variables, variables_anchors = [], []
+            known = {"Variable", "Type", "Parameter", "Required"}
+            for var_table in _tables(
+                    [s for s in children if s.title == "Process Variables"], "Variable"):
+                variables_anchors.append(_table_anchor(var_table, doc))
                 for row, anchor in _rows(var_table, doc):
                     variables.append(VariableFact(
                         name=_clean(row["Variable"]),
@@ -193,17 +191,17 @@ def process_models(docset: DocSet, duplicates: list[str] | None = None) -> dict[
                         extra={h: v.strip() for h, v in row.items() if h not in known},
                         anchor=anchor))
 
-            _register(out, m.group(1).strip(), ProcessFacts(
-                name=m.group(1).strip(),
-                anchor=_content_anchor(doc, span),
+            out[name] = ProcessFacts(
+                name=name,
+                anchor=anchor_,
                 attributes=attributes,
                 variables=variables,
-                variables_anchor=variables_anchor,
-                flow=_flow_source(doc, section, children, span)), "process model", duplicates)
+                variables_anchors=variables_anchors,
+                flow=_flow_source(doc, section, children, span))
     return out
 
 
-def record_types(docset: DocSet, duplicates: list[str] | None = None) -> dict[str, RecordTypeFacts]:
+def record_types(docset: DocSet) -> dict[str, RecordTypeFacts]:
     out: dict[str, RecordTypeFacts] = {}
     for doc in docset.documents:
         for i, section in enumerate(docset.sections(doc)):
@@ -211,12 +209,16 @@ def record_types(docset: DocSet, duplicates: list[str] | None = None) -> dict[st
             if not m:
                 continue
             span = docset.span(doc, i)
+            name = m.group(1).strip()
+            anchor_ = _content_anchor(doc, span)
+            if name in out:
+                out[name].other_definitions.append(anchor_)
+                continue
             pk = next((k.group(1) for p in span
                        if (k := PRIMARY_KEY_RE.search(p.text))), None)
-            fields, fields_anchor = [], None
-            table = _table_with(docset.children(doc, i), "Field Name")
-            if table:
-                fields_anchor = _table_anchor(table, doc)
+            fields, fields_anchors = [], []
+            for table in _tables(docset.children(doc, i), "Field Name"):
+                fields_anchors.append(_table_anchor(table, doc))
                 for row, anchor in _rows(table, doc):
                     fields.append(FieldFact(
                         name=_clean(row["Field Name"]),
@@ -224,29 +226,46 @@ def record_types(docset: DocSet, duplicates: list[str] | None = None) -> dict[st
                         nullable=_clean(row.get("Nullable", "")).lower() == "yes",
                         description=row.get("Description", "").strip(),
                         anchor=anchor))
-            _register(out, m.group(1).strip(), RecordTypeFacts(
-                name=m.group(1).strip(), anchor=_content_anchor(doc, span),
-                primary_key=pk, fields=fields, fields_anchor=fields_anchor),
-                "record type", duplicates)
+            if not fields:
+                # "**Fields:** `id` (Integer, PK), `textValue` (Text)"
+                for p in span:
+                    inline = INLINE_FIELDS_RE.match(p.text.strip())
+                    if not inline:
+                        continue
+                    anchor = Anchor(doc, p.index, p.index)
+                    fields_anchors.append(anchor)
+                    for f in INLINE_FIELD_RE.finditer(inline.group(1)):
+                        parts = [x.strip() for x in f.group(2).split(",")]
+                        fields.append(FieldFact(name=f.group(1), data_type=parts[0],
+                                                nullable=None, description="", anchor=anchor))
+                        if pk is None and "PK" in parts[1:]:
+                            pk = f.group(1)
+            out[name] = RecordTypeFacts(
+                name=name, anchor=anchor_, primary_key=pk, fields=fields,
+                fields_anchors=fields_anchors)
     return out
 
 
-def interfaces(docset: DocSet, duplicates: list[str] | None = None) -> dict[str, InterfaceFacts]:
+def interfaces(docset: DocSet) -> dict[str, InterfaceFacts]:
     out: dict[str, InterfaceFacts] = {}
     for doc in docset.documents:
         for i, section in enumerate(docset.sections(doc)):
-            m = INTERFACE_HEADING_RE.match(section.title)
-            if not m:
+            m = INTERFACE_HEADING_RE.match(section.title.replace("`", ""))
+            if not m or not any(INTERFACE_SCOPE in a.title.lower()
+                                for a in docset.ancestors(doc, i)):
+                continue
+            anchor_ = _content_anchor(doc, docset.span(doc, i))
+            if m.group(1) in out:
+                out[m.group(1)].other_definitions.append(anchor_)
                 continue
             children = docset.children(doc, i)
 
-            rule_inputs, rule_inputs_anchor = [], None
-            table = _table_with(
-                [s for s in children if s.title.startswith("Rule Inputs")], "Input")
-            if table:
-                rule_inputs_anchor = _table_anchor(table, doc)
+            rule_inputs, rule_inputs_anchors = [], []
+            for table in _tables([s for s in children if s.title.startswith("Rule Inputs")],
+                                 "Input", "Parameter"):
+                rule_inputs_anchors.append(_table_anchor(table, doc))
                 for row, anchor in _rows(table, doc):
-                    name = _clean(row["Input"])
+                    name = _clean(row[table.header[0]])
                     rule_inputs.append(RuleInputFact(
                         name=name[3:] if name.startswith("ri!") else name,
                         type=row.get("Type", "").strip(), anchor=anchor))
@@ -263,8 +282,8 @@ def interfaces(docset: DocSet, duplicates: list[str] | None = None) -> dict[str,
                             constraints=constraints,
                             required=constraints == "Required", anchor=anchor))
 
-            _register(out, m.group(1), InterfaceFacts(
-                name=m.group(1), anchor=_content_anchor(doc, docset.span(doc, i)),
-                rule_inputs=rule_inputs, rule_inputs_anchor=rule_inputs_anchor,
-                form_fields=form_fields), "interface", duplicates)
+            out[m.group(1)] = InterfaceFacts(
+                name=m.group(1), anchor=anchor_,
+                rule_inputs=rule_inputs, rule_inputs_anchors=rule_inputs_anchors,
+                form_fields=form_fields)
     return out

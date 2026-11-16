@@ -86,7 +86,7 @@ class TestNodesAndFlows:
 class TestAssumptions:
     def test_no_transformation_is_needed(self, spec, result):
         assert not [a for a in spec["assumptions"] if a["id"].startswith("T-")]
-        assert result.diagnostics == []
+        assert {d.code for d in result.diagnostics} == {"not-carried"}
 
     def test_conflicts_are_recorded_not_resolved(self, supplement):
         ids = [a["id"] for a in supplement["assumptions"]]

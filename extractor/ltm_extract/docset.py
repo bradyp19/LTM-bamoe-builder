@@ -16,7 +16,7 @@ from ltm_reader import DocumentResult, Paragraph, parse_docx
 from ltm_reader.structure import Section, extract_sections
 
 DOC_FILE_RE = re.compile(r"^(\d\d)_.*\.docx$")
-CITE_TOKEN_RE = re.compile(r"\b(D\d\d)\b|¶(\d+)(?:[–-](\d+))?")
+CITE_TOKEN_RE = re.compile(r"\b(D\d\d)\b|¶(?:\s*(\d+)(?:\s*[–—-]\s*(\d+))?)?")
 NON_CONTENT = {"", "---"}
 
 
@@ -42,6 +42,10 @@ class Anchor:
 
     def cite(self) -> str:
         return cite(self.doc, self.start, self.end)
+
+
+def cite_all(anchors: list[Anchor]) -> str:
+    return ", ".join(a.cite() for a in anchors)
 
 
 def has_content(p: Paragraph) -> bool:
@@ -84,6 +88,17 @@ class DocSet:
                 break
         return paragraphs[own.paragraph_index:end]
 
+    def ancestors(self, key: str, section_index: int) -> list[Section]:
+        """Enclosing sections, nearest first."""
+        sections = self.sections(key)
+        level = sections[section_index].level
+        out = []
+        for earlier in reversed(sections[:section_index]):
+            if earlier.level < level:
+                out.append(earlier)
+                level = earlier.level
+        return out
+
     def children(self, key: str, section_index: int) -> list[Section]:
         sections = self.sections(key)
         own = sections[section_index]
@@ -102,20 +117,25 @@ class DocSet:
         except (OSError, KeyError, zipfile.BadZipFile):
             return None
 
-    def find_citations(self, text: str) -> list[tuple[str | None, int, int]]:
-        """(doc, start, end) for every ¶ reference; a bare ¶ inherits the
-        document named before it in the same string."""
+    def find_citations(self, text: str) -> list[tuple[str | None, int | None, int | None]]:
+        """(doc, start, end) for every ¶ in the text; a ¶ inherits the document
+        named before it in the same string. A ¶ with no paragraph number is
+        returned with start None so that it is reported, not skipped."""
         found, doc = [], None
         for m in CITE_TOKEN_RE.finditer(text):
             if m.group(1):
                 doc = m.group(1)
+            elif m.group(2) is None:
+                found.append((doc, None, None))
             else:
                 start = int(m.group(2))
                 found.append((doc, start, int(m.group(3)) if m.group(3) else start))
         return found
 
-    def check_citation(self, doc: str | None, start: int, end: int) -> str | None:
+    def check_citation(self, doc: str | None, start: int | None, end: int | None) -> str | None:
         """None if the reference resolves to content paragraphs, else why not."""
+        if start is None:
+            return f"a ¶ ({doc or 'no document'}) is not followed by a paragraph number"
         if doc is None:
             return f"¶{start} names no document"
         ref = cite(doc, start, end)

@@ -196,7 +196,7 @@ class TestTransformationsAreDisclosed:
         ids = [a["id"] for a in spec["assumptions"]]
         authored = [a["id"] for a in supplement["assumptions"]]
         assert ids[:len(authored)] == authored
-        assert ids[len(authored):] == ["T-1", "T-2", "T-3", "T-4"]
+        assert ids[len(authored):] == ["T-1", "T-2", "T-3", "T-4", "T-5"]
 
     def test_each_transformation_is_explained_with_anchors(self, spec):
         t = {a["id"]: a["text"] for a in spec["assumptions"] if a["id"].startswith("T-")}
@@ -205,6 +205,19 @@ class TestTransformationsAreDisclosed:
         assert "SubconCancel = true" in t["T-3"] and "D03 ¶112–113" in t["T-3"]
         assert "Merge gateway 'Before Allocation Main Screen'" in t["T-4"]
         assert "3 flows" in t["T-4"] and "BAMOE does not accept" in t["T-4"]
+        assert "null flag as not true" in t["T-5"]
+
+    def test_confirmation_preserves_lists_already_returned_by_main_screen(self, spec, supplement):
+        assert node(spec, "allocationConfirmation")["outputs"] == []
+        conflict = next(a for a in spec["assumptions"] if a["id"] == "AL-C3")
+        assert "D04 ¶96" in conflict["text"] and "D06 ¶184" in conflict["text"]
+        assign = next(t for t in supplement["tests"]
+                      if t["name"] == "assign_savesEmployeesAndSubcontractors")
+        assert assign["steps"][1] == {"task": "allocationConfirmation", "complete": {}}
+
+    def test_conflicts_stay_open_and_separate_from_the_draft_decisions(self, spec):
+        assert [a["id"] for a in spec["assumptions"] if a["id"].startswith("AL-C")] == [
+            "AL-C1", "AL-C2", "AL-C3", "AL-C4", "AL-C5"]
 
     def test_diagnostics_report_the_same_transformations(self, result):
         codes = [d.code for d in result.diagnostics]

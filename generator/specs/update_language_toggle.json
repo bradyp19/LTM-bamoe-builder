@@ -126,7 +126,7 @@
     },
     {
       "id": "TL-C3",
-      "text": "CONFLICT: D01 ¶120 says the process persists 'the preference' (reads as per user); D02 ¶308 and D07 ¶134 say it is one global constant that changes the language for every user. Model follows the flow: one global write, no user key."
+      "text": "CONFLICT: D01 ¶120 says the process persists 'the preference' (reads as per user); D07 ¶134 says it changes the language for every user. Model follows the flow: one global write, no user key."
     },
     {
       "id": "TL-C4",
