@@ -251,6 +251,23 @@ class TestDuplicateNames:
 
 
 class TestHeadingNearMisses:
+    @pytest.mark.parametrize("heading", ["UI Forms", "UI Form Reference", "Forms"])
+    def test_ui_form_heading_keeps_documented_task_inputs(self, make_docx, docset, heading):
+        lines = [f"# {heading}"] + INTERFACES[1:]
+        f = make_docx("04_Interfaces.docx", lines)
+        result = build_spec(DocSet.load(f.parent), approve_supplement())
+        task = next(n for n in result.spec["nodes"] if n["id"] == "reviewOrder")
+        assert task["inputs"] == ["order", "approved"]
+        assert "Inputs: rule inputs at D04 ¶6–10." in task["doc"]
+        assert not any(d.code == "interface-not-found" for d in result.diagnostics)
+
+    def test_unrelated_heading_is_not_a_form_scope(self, make_docx):
+        from ltm_extract.facts import interfaces
+
+        lines = ["# Transformations"] + INTERFACES[1:]
+        f = make_docx("04_Interfaces.docx", lines)
+        assert interfaces(DocSet.load(f.parent)) == {}
+
     def test_missing_process_points_at_headings_that_mention_it(self, make_docx):
         lines = ["# Workflow", "", "## Process: ACME Approve Order", "", "text"]
         ds = DocSet.load(make_docx("03_Workflow.docx", lines).parent)

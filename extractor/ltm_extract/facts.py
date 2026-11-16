@@ -19,7 +19,7 @@ from .docset import Anchor, DocSet, has_content
 PROCESS_HEADING_RE = re.compile(r"^Process Model:\s*(.+)$")
 RECORD_HEADING_RE = re.compile(r"^Record Type:\s*(.+?)(?:\s*\([^)]*\))?$")
 INTERFACE_HEADING_RE = re.compile(r"^\d+\.\s+([A-Za-z_]\w*)$")  # after backticks are removed
-INTERFACE_SCOPE = "interface"  # an enclosing heading must mention it
+INTERFACE_SCOPE_RE = re.compile(r"\b(?:interfaces?|forms?)\b", re.IGNORECASE)
 INLINE_FIELDS_RE = re.compile(r"^\*\*Fields:\*\*\s*(.+)$")
 INLINE_FIELD_RE = re.compile(r"`(\w+)`\s*\(([^)]*)\)")
 FENCE_RE = re.compile(r"^\s*```")
@@ -251,7 +251,7 @@ def interfaces(docset: DocSet) -> dict[str, InterfaceFacts]:
     for doc in docset.documents:
         for i, section in enumerate(docset.sections(doc)):
             m = INTERFACE_HEADING_RE.match(section.title.replace("`", ""))
-            if not m or not any(INTERFACE_SCOPE in a.title.lower()
+            if not m or not any(INTERFACE_SCOPE_RE.search(a.title)
                                 for a in docset.ancestors(doc, i)):
                 continue
             anchor_ = _content_anchor(doc, docset.span(doc, i))
