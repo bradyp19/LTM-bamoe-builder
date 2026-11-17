@@ -3,6 +3,19 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+
+TEMPLATES = Path(__file__).parent / "templates"
+
+
+def test_class_name(process_id: str) -> str:
+    return process_id[0].upper() + process_id[1:] + "ProcessTest"
+
+
+def emit_audit_support(package: str) -> dict[str, str]:
+    """Test-scope helper shared by every process test (path relative to the test package)."""
+    text = (TEMPLATES / "StepAudit.java").read_text(encoding="utf-8")
+    return {"StepAudit.java": text.replace("__PKG__", package)}
 
 
 def _getter_name(field: str, jtype: str) -> str:
@@ -135,19 +148,23 @@ def _java_map(values: dict, variables: dict, setup: list[str], models: set[str],
 
 
 def _scenario_test(t: dict, variables: dict, task_names: dict, stores: dict,
-                   models: set[str]) -> str:
+                   models: set[str], start_name: str) -> str:
     """A scenario with `steps`: start values, then each user task completed in order.
     expect.saves maps store class -> number of save calls; expect.savedLists maps
     store class -> size of the list saved by its first call; expect.savedValues maps
     store class -> the scalar value saved by its first call."""
     setup, lines = [], []
     start = _java_map(t.get("start", {}), variables, setup, models, f"test {t['name']} start", "start")
-    lines.append("        var model = process.createModel();")
-    if t.get("start"):
-        lines += setup
-        lines.append(f"        model.update({start});")
-    lines += ["        var instance = process.createInstance(model);",
-              "        instance.start();"]
+    lines += setup
+    lines += [f"        Map<String, Object> sent0 = {start};",
+              "        var model = process.createModel();",
+              "        model.update(sent0);",
+              "        var instance = inUnitOfWork(() -> {",
+              "            var i = process.createInstance(model);",
+              "            i.start();",
+              "            return i;",
+              "        });",
+              f'        audit.step("start", instance.id(), "{start_name}", sent0);']
     for i, step in enumerate(t["steps"], 1):
         if step["task"] not in task_names:
             raise ValueError(f"test {t['name']}: no user task '{step['task']}'")
@@ -160,10 +177,14 @@ def _scenario_test(t: dict, variables: dict, task_names: dict, stores: dict,
             f"        assertThat(items{i}).hasSize(1);",
             f'        assertThat(items{i}.get(0).getName()).isEqualTo("{task_names[step["task"]]}");',
             *setup,
-            f"        instance.completeWorkItem(items{i}.get(0).getId(), {done}, USER);",
+            f"        Map<String, Object> sent{i} = {done};",
+            f"        inUnitOfWork(() -> instance.completeWorkItem(items{i}.get(0).getId(), sent{i}, USER));",
+            f'        audit.step("{step["task"]}", instance.id(), "{task_names[step["task"]]}", sent{i});',
         ]
     expect = t["expect"]
     lines.append(f"        assertThat(instance.status()).isEqualTo(ProcessInstance.STATE_{expect['status']});")
+    lines.append(_finish(expect["status"], {s: expect.get("saves", {}).get(s, 0) for s in stores},
+                         stores))
     for store in stores:
         lines.append(f"        assertThat({store}.saves()).hasSize({expect.get('saves', {}).get(store, 0)});")
     for store, size in expect.get("savedLists", {}).items():
@@ -177,10 +198,18 @@ def _scenario_test(t: dict, variables: dict, task_names: dict, stores: dict,
     }}"""
 
 
+def _finish(status: str, saves: dict, stores: dict) -> str:
+    """Service tasks whose store expects saves must appear in the node history, the others not."""
+    ran = [stores[c]["name"] for c, n in saves.items() if n > 0]
+    not_ran = [stores[c]["name"] for c, n in saves.items() if n == 0]
+    names = lambda xs: "List.of(" + ", ".join(json.dumps(x, ensure_ascii=False) for x in xs) + ")"
+    return f'        audit.finish(instance.id(), "{status}", {names(ran)}, {names(not_ran)});'
+
+
 def _imports(pkg: str, models: set[str], stores: dict, tests: list[str]) -> dict:
-    java = "import java.util.Map;"
-    if any("List.of(" in t for t in tests):
-        java = "import java.util.ArrayList;\nimport java.util.List;\n" + java
+    java = "import java.util.List;\nimport java.util.Map;"
+    if any("new ArrayList<>(" in t for t in tests):
+        java = "import java.util.ArrayList;\n" + java
     project = "\n".join([f"import {pkg}.model.{m};" for m in sorted(models)]
                         + [f"import {pkg}.service.{c};" for c in stores])
     return {"java": java, "project": project}
@@ -194,6 +223,7 @@ def emit_process_test(spec: dict) -> str:
               if n["type"] == "serviceTask"}
     task_names = {n["id"]: n["name"] for n in spec["nodes"] if n["type"] == "userTask"}
     scenario_models: set[str] = set()
+    start_name = next(n["name"] for n in spec["nodes"] if n["type"] == "start")
     groups = sorted({g for n in spec["nodes"] for g in n.get("candidateGroups", [])})
     identity = ('new StaticIdentityProvider("tester", java.util.List.of('
                 + ", ".join(f'"{g}"' for g in groups) + "))") if groups else 'new StaticIdentityProvider("tester")'
@@ -211,7 +241,8 @@ def emit_process_test(spec: dict) -> str:
     tests = []
     for t in spec["tests"]:
         if "steps" in t:
-            tests.append(_scenario_test(t, variables, task_names, stores, scenario_models))
+            tests.append(_scenario_test(t, variables, task_names, stores, scenario_models,
+                                        start_name))
             continue
         init = [f'        var model = process.createModel();']
         init += _pojo_init(model_type, t["start"][model_var], "p")
@@ -220,9 +251,14 @@ def emit_process_test(spec: dict) -> str:
         if map_entries:
             map_entries += ", "
         map_entries += f'"{model_var}", p'
-        init.append(f'        model.update(Map.of({map_entries}));')
-        init.append(f'        var instance = process.createInstance(model);')
-        init.append('        instance.start();')
+        init.append(f'        Map<String, Object> sent0 = Map.of({map_entries});')
+        init.append('        model.update(sent0);')
+        init += ["        var instance = inUnitOfWork(() -> {",
+                 "            var i = process.createInstance(model);",
+                 "            i.start();",
+                 "            return i;",
+                 "        });",
+                 f'        audit.step("start", instance.id(), "{start_name}", sent0);']
         complete_vars = dict(t["complete"])
         complete_vars[model_var] = "p"
         cmap = ", ".join(
@@ -240,9 +276,12 @@ def emit_process_test(spec: dict) -> str:
         var items = instance.workItems(USER);
         assertThat(items).hasSize(1);
         assertThat(items.get(0).getName()).isEqualTo("{form_node["name"]}");
-        instance.completeWorkItem(items.get(0).getId(), Map.of({cmap}), USER);
+        Map<String, Object> sent1 = Map.of({cmap});
+        inUnitOfWork(() -> instance.completeWorkItem(items.get(0).getId(), sent1, USER));
+        audit.step("{form_node["id"]}", instance.id(), "{form_node["name"]}", sent1);
         assertThat(instance.status()).isEqualTo(ProcessInstance.STATE_{t["expect"]["status"]});
         assertThat({store}.saves()).hasSize({t["expect"]["saves"]});{saved_asserts}
+{_finish(t["expect"]["status"], {store: t["expect"]["saves"]}, stores)}
     }}'''
         tests.append(body)
 
@@ -255,23 +294,34 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 {imports["java"]}
 
+import java.net.URL;
+import java.util.function.Supplier;
+
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
+import org.kie.kogito.Application;
 import org.kie.kogito.Model;
 import org.kie.kogito.auth.SecurityPolicy;
 import org.kie.kogito.process.Process;
 import org.kie.kogito.process.ProcessInstance;
 import org.kie.kogito.services.identity.StaticIdentityProvider;
+import org.kie.kogito.services.uow.UnitOfWorkExecutor;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.quarkus.test.common.http.TestHTTPResource;
 import io.quarkus.test.junit.QuarkusTest;
 {imports["project"]}
 
 // Generated process test. Scenarios from spec evidence: {p["evidence"]}
+// After each step the data-audit record of the instance is checked (StepAudit).
 @QuarkusTest
-class {p["id"][0].upper() + p["id"][1:]}ProcessTest {{
+class {test_class_name(p["id"])} {{
 
     private static final SecurityPolicy USER =
             SecurityPolicy.of({identity});
@@ -280,9 +330,38 @@ class {p["id"][0].upper() + p["id"][1:]}ProcessTest {{
     @Named("{p["id"]}")
     Process<? extends Model> process;
 
+    @Inject
+    Application application;
+
+    @Inject
+    ObjectMapper mapper;
+
+    @TestHTTPResource("/data-audit/q")
+    URL auditUrl;
+
+    StepAudit audit;
+
     @BeforeEach
-    void clearStore() {{
+    void clearStore(TestInfo info) {{
 {clears}
+        audit = new StepAudit(auditUrl, mapper, "{p["id"]}", info.getTestMethod().orElseThrow().getName());
+    }}
+
+    @AfterAll
+    static void writeAudit() throws java.io.IOException {{
+        StepAudit.write("{p["id"]}");
+    }}
+
+    /** Audit events are published when a unit of work ends. */
+    private <T> T inUnitOfWork(Supplier<T> work) {{
+        return UnitOfWorkExecutor.executeInUnitOfWork(application.unitOfWorkManager(), work);
+    }}
+
+    private void inUnitOfWork(Runnable work) {{
+        inUnitOfWork(() -> {{
+            work.run();
+            return null;
+        }});
     }}
 {"".join(tests)}
 }}

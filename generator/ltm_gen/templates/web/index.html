@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Processes</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header>
+  <h1 id="app-name">Processes</h1>
+  <p class="note">Generated from the process specs. Development profile only: authentication is off.
+    Services are test doubles.</p>
+  <label>User <input id="user" size="10"></label>
+  <label>Groups <input id="groups" size="24" placeholder="comma separated"></label>
+</header>
+<nav>
+  <button data-tab="start" class="active">Start a process</button>
+  <button data-tab="inbox">Task inbox</button>
+  <button data-tab="instances">Instances and audit</button>
+</nav>
+<main>
+  <section id="tab-start"></section>
+  <section id="tab-inbox" hidden>
+    <button id="refresh-inbox">Refresh</button>
+    <table id="inbox"><thead><tr><th>Process</th><th>Instance</th><th>Task</th><th>State</th><th></th></tr></thead><tbody></tbody></table>
+    <div id="task"></div>
+  </section>
+  <section id="tab-instances" hidden>
+    <button id="refresh-instances">Refresh</button>
+    <table id="instances"><thead><tr><th>Process</th><th>Instance</th><th>Status</th><th>Last change</th><th></th></tr></thead><tbody></tbody></table>
+    <div id="instance"></div>
+  </section>
+  <section id="last-check" aria-live="polite"></section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
