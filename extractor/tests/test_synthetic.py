@@ -251,6 +251,50 @@ class TestDuplicateNames:
 
 
 class TestHeadingNearMisses:
+    @pytest.mark.parametrize("heading", [
+        "UI Forms", "UI Form Reference", "Forms", "UI_Interfaces", "UI_Forms",
+        "Business Screens"])
+    def test_ui_form_heading_keeps_documented_task_inputs(self, make_docx, docset, heading):
+        lines = [f"# {heading}"] + INTERFACES[1:]
+        f = make_docx("04_Interfaces.docx", lines)
+        result = build_spec(DocSet.load(f.parent), approve_supplement())
+        task = next(n for n in result.spec["nodes"] if n["id"] == "reviewOrder")
+        assert task["inputs"] == ["order", "approved"]
+        assert "Inputs: rule inputs at D04 ¶6–10." in task["doc"]
+        assert not any(d.code == "interface-not-found" for d in result.diagnostics)
+
+    def test_unrelated_heading_is_not_a_form_scope(self, make_docx):
+        from ltm_extract.facts import interfaces
+
+        lines = ["# Transformations"] + [line for line in INTERFACES[1:]
+                                       if not line.startswith("**Type:**")]
+        f = make_docx("04_Interfaces.docx", lines)
+        assert interfaces(DocSet.load(f.parent)) == {}
+
+    def test_explicit_non_interface_type_is_not_mistaken_for_a_form(self, make_docx):
+        from ltm_extract.facts import interfaces
+
+        lines = [line.replace("**Type:** Form", "**Type:** Expression Rule")
+                 for line in INTERFACES]
+        f = make_docx("04_Interfaces.docx", lines)
+        assert interfaces(DocSet.load(f.parent)) == {}
+
+    def test_untyped_interface_falls_back_to_normalized_scope(self, make_docx, docset):
+        lines = ["# UI_Interfaces"] + [line for line in INTERFACES[1:]
+                                      if not line.startswith("**Type:**")]
+        f = make_docx("04_Interfaces.docx", lines)
+        result = build_spec(DocSet.load(f.parent), approve_supplement())
+        task = next(n for n in result.spec["nodes"] if n["id"] == "reviewOrder")
+        assert task["inputs"] == ["order", "approved"]
+
+    def test_missing_interface_never_silently_emits_an_inputless_task(self, make_docx, docset):
+        lines = ["# Business Components"] + [line for line in INTERFACES[1:]
+                                           if not line.startswith("**Type:**")]
+        f = make_docx("04_Interfaces.docx", lines)
+        with pytest.raises(ExtractionError,
+                           match="reviewOrder: interface 'ACME_FRM_Review' is not documented"):
+            build_spec(DocSet.load(f.parent), approve_supplement())
+
     def test_missing_process_points_at_headings_that_mention_it(self, make_docx):
         lines = ["# Workflow", "", "## Process: ACME Approve Order", "", "text"]
         ds = DocSet.load(make_docx("03_Workflow.docx", lines).parent)

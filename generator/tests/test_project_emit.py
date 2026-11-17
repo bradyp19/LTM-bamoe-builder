@@ -73,7 +73,41 @@ class TestGeneratedProjectCompilesAndRunsOnBamoe:
         src = (allocations / "src/test/java/nssol/AllocationsProcessTest.java").read_text()
         assert src.count("@Test") == 3
         assert 'getName()).isEqualTo("Allocation Confirmation")' in src
-        assert "step1_assignedEmployees0" in src and "step2_assignedEmployees0" in src
+        assert "step1_assignedEmployees0" in src
+        assert "step2_assignedEmployees0" not in src  # confirmation must not replace the lists
         assert "new ArrayList<>(List.of(" in src
         assert "import java.util.ArrayList;" in src
         assert "MapEmployeeStore.clear();" in src and "MapSubcontractorStore.clear();" in src
+
+
+@pytest.fixture(scope="module")
+def toggle(tmp_path_factory):
+    out = tmp_path_factory.mktemp("toggle")
+    emit_project(_load("update_language_toggle"), SKELETON, out)
+    return out
+
+
+class TestScalarServiceStub:
+    """A service task may save a plain value (here a Boolean), not only a model."""
+
+    def test_store_saves_the_scalar_type_without_a_model_import(self, toggle):
+        src = _service(toggle, "LanguageToggleStore")
+        assert "import nssol.model" not in src
+        assert "record SaveCall(java.lang.Boolean value)" in src
+        assert "public java.lang.Boolean update(java.lang.Boolean toggleValue)" in src
+
+    def test_no_model_classes_and_no_flat_classpath(self, toggle):
+        assert not (toggle / "src/main/java/nssol/model").exists()
+        assert "flat-class-path" not in \
+            (toggle / "src/main/resources/application.properties").read_text()
+
+
+class TestProcessWithoutUserTasks:
+    def test_scenarios_start_the_instance_and_check_the_saved_value(self, toggle):
+        src = (toggle / "src/test/java/nssol/UpdateLanguageToggleProcessTest.java").read_text()
+        assert src.count("@Test") == 2
+        assert "workItems" not in src
+        assert 'model.update(Map.of("toggleValue", true));' in src
+        assert "assertThat(LanguageToggleStore.saves()).hasSize(1);" in src
+        assert "assertThat(LanguageToggleStore.saves().get(0).value()).isEqualTo(false);" in src
+        assert "import nssol.model" not in src

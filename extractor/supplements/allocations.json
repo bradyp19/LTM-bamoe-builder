@@ -8,107 +8,421 @@
       "NSSOL Map Employees": "MapEmployee",
       "NSSOL Map Subcontractors": "MapSubcontractor"
     },
-    "typeMap": {"DateTime": "java.time.LocalDateTime"},
+    "typeMap": {
+      "DateTime": "java.time.LocalDateTime"
+    },
     "nodes": {
       "allocationMainScreen": {
-        "outputs": ["assignedEmployees", "assignedSubcontractors", "isAddEmployee",
-                    "isAddSubcontractor", "isAssign", "allocationCancel"],
+        "outputs": [
+          "assignedEmployees",
+          "assignedSubcontractors",
+          "isAddEmployee",
+          "isAddSubcontractor",
+          "isAssign",
+          "allocationCancel"
+        ],
         "notes": "PROPOSAL (AL-7): outputs are the flags the buttons set (D03 ¶88–91) and the lists D04 ¶179–180 describe as passed back to PV. No documented assignee (AL-1).",
         "support": [
-          {"cite": "D03 ¶88", "quote": "sets isAddEmployee=true"},
-          {"cite": "D03 ¶91", "quote": "sets allocationCancel=true"},
-          {"cite": "D04 ¶179", "quote": "(passed back to PV)"},
-          {"cite": "D04 ¶180", "quote": "(passed back to PV)"}
+          {
+            "cite": "D03 ¶88",
+            "quote": "sets isAddEmployee=true"
+          },
+          {
+            "cite": "D03 ¶91",
+            "quote": "sets allocationCancel=true"
+          },
+          {
+            "cite": "D04 ¶179",
+            "quote": "(passed back to PV)"
+          },
+          {
+            "cite": "D04 ¶180",
+            "quote": "(passed back to PV)"
+          }
         ]
       },
       "employeeSearchScreen": {
-        "outputs": ["selectedEmployees", "empCancel"],
-        "notes": "PROPOSAL (AL-7): outputs from D03 ¶101–102. No rule inputs are documented for this interface.",
+        "outputs": [
+          "selectedEmployees",
+          "empCancel"
+        ],
+        "notes": "PROPOSAL (AL-7): outputs from D03 ¶101–102. D04 lists no rule inputs for this interface; D06 ¶182 says process variables are passed to it as ri! without naming them, so no inputs are bound (AL-12).",
         "support": [
-          {"cite": "D03 ¶101", "quote": "Selected employees stored in pv!selectedEmployees"},
-          {"cite": "D03 ¶102", "quote": "[empCancel = true]"}
+          {
+            "cite": "D03 ¶101",
+            "quote": "Selected employees stored in pv!selectedEmployees"
+          },
+          {
+            "cite": "D03 ¶102",
+            "quote": "[empCancel = true]"
+          },
+          {
+            "cite": "D06 ¶182",
+            "quote": "| NSSOL Allocations | NSSOL_GRID_Employee_Search_Screen | PVs → ri! (selectedEmployees written back) |"
+          }
         ]
       },
       "subcontractorSearchScreen": {
-        "outputs": ["selectedSubcontractors", "SubconCancel"],
-        "notes": "PROPOSAL (AL-7): outputs from D03 ¶111–112. No rule inputs are documented for this interface.",
+        "outputs": [
+          "selectedSubcontractors",
+          "SubconCancel"
+        ],
+        "notes": "PROPOSAL (AL-7): outputs from D03 ¶111–112. D04 lists no rule inputs for this interface; D06 ¶183 says process variables are passed to it as ri! without naming them, so no inputs are bound (AL-12).",
         "support": [
-          {"cite": "D03 ¶111", "quote": "Selected subcontractors stored in pv!selectedSubcontractors"},
-          {"cite": "D03 ¶112", "quote": "[SubconCancel = true]"}
+          {
+            "cite": "D03 ¶111",
+            "quote": "Selected subcontractors stored in pv!selectedSubcontractors"
+          },
+          {
+            "cite": "D03 ¶112",
+            "quote": "[SubconCancel = true]"
+          },
+          {
+            "cite": "D06 ¶183",
+            "quote": "| NSSOL Allocations | NSSOL_GRID_Subcontractor_Search_Screen | PVs → ri! (selectedSubcontractors written back) |"
+          }
         ]
       },
       "allocationConfirmation": {
-        "outputs": ["assignedEmployees", "assignedSubcontractors"],
-        "notes": "PROPOSAL (AL-7): outputs from D04 ¶96. AL-C2 CONFLICT: D04 ¶97 documents a Back button; the diagram has no path back.",
+        "outputs": [],
+        "notes": "AL-C3 CONFLICT: D04 ¶96 says Submit saves the assigned lists to the process variables, but the form's only rule input is projectInfo (D04 ¶89–91) and D06 ¶184 calls it a read-only summary; no outputs are bound until this is resolved. AL-C2 CONFLICT: D04 ¶97 documents a Back button; the diagram has no path back.",
         "support": [
-          {"cite": "D04 ¶96", "quote": "saving the assigned employee/subcontractor lists to the process variables"},
-          {"cite": "D04 ¶97", "quote": "**Back** button: returns to allocation screen"}
+          {
+            "cite": "D04 ¶96",
+            "quote": "saving the assigned employee/subcontractor lists to the process variables"
+          },
+          {
+            "cite": "D04 ¶89–91",
+            "quote": "| `ri!projectInfo` | NSSOL Projects | Project context |"
+          },
+          {
+            "cite": "D06 ¶184",
+            "quote": "| NSSOL Allocations | NSSOL_FRM_Allocation_Confirmation | PVs → ri! (read-only summary) |"
+          },
+          {
+            "cite": "D04 ¶97",
+            "quote": "**Back** button: returns to allocation screen"
+          }
         ]
       },
       "writeMapEmployeeRecords": {
         "type": "serviceTask",
-        "service": {"class": "nssol.service.MapEmployeeStore", "operation": "save"},
-        "inputs": ["assignedEmployees"],
-        "outputs": ["assignedEmployees"],
-        "notes": "AL-4: untyped in the diagram; MapEmployeeStore is a proposed test double. Saves assignedEmployees to NSSOL Map Employees (D03 ¶125–126); write semantics unspecified.",
+        "service": {
+          "class": "nssol.service.MapEmployeeStore",
+          "operation": "save"
+        },
+        "inputs": [
+          "assignedEmployees"
+        ],
+        "outputs": [
+          "assignedEmployees"
+        ],
+        "notes": "AL-4: untyped in the diagram; MapEmployeeStore is a proposed test double. Saves assignedEmployees to NSSOL Map Employees (D03 ¶125); the documented record contents are in AL-9.",
         "support": [
-          {"cite": "D03 ¶125", "quote": "Saves pv!assignedEmployees to NSSOL Map Employees record type"}
+          {
+            "cite": "D03 ¶125",
+            "quote": "Saves pv!assignedEmployees to NSSOL Map Employees record type"
+          }
         ]
       },
       "writeMapSubcontractorRecords": {
         "type": "serviceTask",
-        "service": {"class": "nssol.service.MapSubcontractorStore", "operation": "save"},
-        "inputs": ["assignedSubcontractors"],
-        "outputs": ["assignedSubcontractors"],
-        "notes": "AL-4: untyped in the diagram; MapSubcontractorStore is a proposed test double. Saves assignedSubcontractors to NSSOL Map Subcontractors (D03 ¶130); write semantics unspecified.",
+        "service": {
+          "class": "nssol.service.MapSubcontractorStore",
+          "operation": "save"
+        },
+        "inputs": [
+          "assignedSubcontractors"
+        ],
+        "outputs": [
+          "assignedSubcontractors"
+        ],
+        "notes": "AL-4: untyped in the diagram; MapSubcontractorStore is a proposed test double. Saves assignedSubcontractors to NSSOL Map Subcontractors (D03 ¶130); record contents are not documented (AL-9).",
         "support": [
-          {"cite": "D03 ¶130", "quote": "Saves pv!assignedSubcontractors to NSSOL Map Subcontractors record type"}
+          {
+            "cite": "D03 ¶130",
+            "quote": "Saves pv!assignedSubcontractors to NSSOL Map Subcontractors record type"
+          }
+        ]
+      },
+      "start": {
+        "notes": "Trigger: record action 'Open Allocation' on NSSOL Projects, passing projectInfo (D03 ¶254, D06 ¶174).",
+        "support": [
+          {
+            "cite": "D03 ¶254",
+            "quote": "| Allocation action | Open Allocation (from project row) | NSSOL Allocations (passing projectInfo) |"
+          },
+          {
+            "cite": "D06 ¶174",
+            "quote": "| Record Action (Projects) | NSSOL Allocations | Record Action config | `projectInfo` (full object) |"
+          }
         ]
       }
     }
   },
   "assumptions": [
-    {"id": "AL-1", "text": "No task assignee/candidate group documented; the four user tasks are left unassigned (same gap as SR-3)."},
-    {"id": "AL-2", "text": "Branch precedence and default are undocumented (D03 ¶93–115): nothing says which flag wins if several are true, or what happens if none is. Conditions are emitted in document order with no default flow.",
-     "support": [
-       {"cite": "D03 ¶93", "quote": "[allocationCancel = true]"},
-       {"cite": "D03 ¶95", "quote": "[isAddEmployee = true]"},
-       {"cite": "D03 ¶105", "quote": "[isAddSubcontractor = true]"},
-       {"cite": "D03 ¶115", "quote": "[isAssign = true]"}
-     ]},
-    {"id": "AL-3", "text": "Flag reset on loop-back is undocumented (D03 ¶102–103, ¶112–113): nothing clears isAddEmployee / isAddSubcontractor when a search screen returns, so the same branch is taken again unless the form resets the flag.",
-     "support": [
-       {"cite": "D03 ¶102–103", "quote": "back to Allocation Main Screen with selectedEmployees populated"},
-       {"cite": "D03 ¶112–113", "quote": "back to Allocation Main Screen with selectedSubcontractors populated"}
-     ]},
-    {"id": "AL-4", "text": "The two write nodes carry no task type in the diagram (D03 ¶124, ¶129); modelled as service tasks. MapEmployeeStore and MapSubcontractorStore are proposed test doubles; real write semantics unspecified (same gap as SR-4).",
-     "support": [
-       {"cite": "D03 ¶124", "quote": "[Write Map Employee Records]"},
-       {"cite": "D03 ¶129", "quote": "[Write Map Subcontractor Records]"}
-     ]},
-    {"id": "AL-C1", "text": "CONFLICT: D03 ¶220 counts 3 forms (allocation + 2 search); the flow diagram has a fourth user task, Allocation Confirmation (D03 ¶118–119). Model follows the diagram.",
-     "support": [
-       {"cite": "D03 ¶220", "quote": "| Forms Involved | 1 (registration) | 3 (allocation + 2 search) | 0 |"},
-       {"cite": "D03 ¶118–119", "quote": "Interface: NSSOL_FRM_Allocation_Confirmation"}
-     ]},
-    {"id": "AL-C2", "text": "CONFLICT: D04 ¶97 gives Allocation Confirmation a Back button returning to the allocation screen; the flow diagram shows no path back from it (D03 ¶118–124). Model follows the diagram: no back flow.",
-     "support": [
-       {"cite": "D04 ¶97", "quote": "**Back** button: returns to allocation screen"},
-       {"cite": "D03 ¶118–124", "quote": "[Write Map Employee Records]"}
-     ]},
-    {"id": "AL-5", "text": "Process name template is dynamic (D03 ¶49); the BPMN process name is the static model name.",
-     "support": [
-       {"cite": "D03 ¶49", "quote": "\"NSSOL Allocations - \" & pv!projectInfo[projectName]"}
-     ]},
-    {"id": "AL-6", "text": "The documented projectInfo default (D03 ¶61) is not carried into the spec.",
-     "support": [
-       {"cite": "D03 ¶61", "quote": "projectId = 3 (default for dev)"}
-     ]},
-    {"id": "AL-7", "text": "Target-design proposals pending approval: class names (ProjectRegistration reused for NSSOL Projects; Employee, Subcontractor, MapEmployee, MapSubcontractor), DateTime as java.time.LocalDateTime, list variables as java.util.List, and every user-task output."},
-    {"id": "AL-8", "text": "Cancelling a search screen is documented as returning without selection (D04 ¶251); the merged return flow carries no condition, so nothing in the process enforces it.",
-     "support": [
-       {"cite": "D04 ¶251", "quote": "Cancel → returns without selection (sets `empCancel=true`)"}
-     ]}
+    {
+      "id": "AL-1",
+      "text": "No task assignee/candidate group documented; the four user tasks are left unassigned (same gap as SR-3)."
+    },
+    {
+      "id": "AL-2",
+      "text": "Branch precedence and default are undocumented (D03 ¶93–115): nothing says which flag wins if several are true, or what happens if none is. All four flags default to null (D03 ¶66–69). Conditions are emitted in document order with no default flow.",
+      "support": [
+        {
+          "cite": "D03 ¶93",
+          "quote": "[allocationCancel = true]"
+        },
+        {
+          "cite": "D03 ¶95",
+          "quote": "[isAddEmployee = true]"
+        },
+        {
+          "cite": "D03 ¶105",
+          "quote": "[isAddSubcontractor = true]"
+        },
+        {
+          "cite": "D03 ¶115",
+          "quote": "[isAssign = true]"
+        },
+        {
+          "cite": "D03 ¶66–69",
+          "quote": "| `isAddEmployee` | Boolean | Yes | No | null |"
+        }
+      ]
+    },
+    {
+      "id": "AL-3",
+      "text": "Flag reset on loop-back is undocumented (D03 ¶102–103, ¶112–113): nothing clears isAddEmployee / isAddSubcontractor when a search screen returns, so the same branch is taken again unless the form resets the flag.",
+      "support": [
+        {
+          "cite": "D03 ¶102–103",
+          "quote": "back to Allocation Main Screen with selectedEmployees populated"
+        },
+        {
+          "cite": "D03 ¶112–113",
+          "quote": "back to Allocation Main Screen with selectedSubcontractors populated"
+        }
+      ]
+    },
+    {
+      "id": "AL-4",
+      "text": "The two write nodes carry no task type in the diagram (D03 ¶124, ¶129); modelled as service tasks. MapEmployeeStore and MapSubcontractorStore are proposed test doubles (same gap as SR-4).",
+      "support": [
+        {
+          "cite": "D03 ¶124",
+          "quote": "[Write Map Employee Records]"
+        },
+        {
+          "cite": "D03 ¶129",
+          "quote": "[Write Map Subcontractor Records]"
+        }
+      ]
+    },
+    {
+      "id": "AL-C1",
+      "text": "CONFLICT: D03 ¶220 counts 3 forms (allocation + 2 search); the flow diagram has a fourth user task, Allocation Confirmation (D03 ¶118–119). Model follows the diagram.",
+      "support": [
+        {
+          "cite": "D03 ¶220",
+          "quote": "| Forms Involved | 1 (registration) | 3 (allocation + 2 search) | 0 |"
+        },
+        {
+          "cite": "D03 ¶118–119",
+          "quote": "Interface: NSSOL_FRM_Allocation_Confirmation"
+        }
+      ]
+    },
+    {
+      "id": "AL-C2",
+      "text": "CONFLICT: D04 ¶97 gives Allocation Confirmation a Back button returning to the allocation screen; the flow diagram shows no path back from it (D03 ¶118–124). Model follows the diagram: no back flow.",
+      "support": [
+        {
+          "cite": "D04 ¶97",
+          "quote": "**Back** button: returns to allocation screen"
+        },
+        {
+          "cite": "D03 ¶118–124",
+          "quote": "[Write Map Employee Records]"
+        }
+      ]
+    },
+    {
+      "id": "AL-C3",
+      "text": "CONFLICT: D04 ¶96 says the Allocation Confirmation Submit button saves the assigned employee/subcontractor lists to the process variables; its only rule input is projectInfo (D04 ¶89–91) and D06 ¶184 describes it as a read-only summary. The main screen already passes both lists back (D04 ¶179–180). No outputs are bound on the confirmation task.",
+      "support": [
+        {
+          "cite": "D04 ¶96",
+          "quote": "saving the assigned employee/subcontractor lists to the process variables"
+        },
+        {
+          "cite": "D04 ¶89–91",
+          "quote": "| `ri!projectInfo` | NSSOL Projects | Project context |"
+        },
+        {
+          "cite": "D06 ¶184",
+          "quote": "PVs → ri! (read-only summary)"
+        },
+        {
+          "cite": "D04 ¶179–180",
+          "quote": "Current allocated employees (passed back to PV)"
+        }
+      ]
+    },
+    {
+      "id": "AL-C4",
+      "text": "CONFLICT (start permissions; same as C3 in the Register Project packet): D03 ¶242 says the process models are open to all authenticated users; D07 ¶96 says NP Users cannot start instances, while D07 ¶98 makes record-action security the gate and D07 ¶115 lets NP Users see Allocate. Not modelled.",
+      "support": [
+        {
+          "cite": "D03 ¶242",
+          "quote": "No explicit INITIATOR or MANAGER group assignments (open to all authenticated users)"
+        },
+        {
+          "cite": "D07 ¶96",
+          "quote": "Cannot start, cancel, or modify instances"
+        },
+        {
+          "cite": "D07 ¶98",
+          "quote": "The record action security (governed by record type security) acts as the gating control."
+        },
+        {
+          "cite": "D07 ¶115",
+          "quote": "**NP Users:** See standard actions (New Project, Edit, Allocate)"
+        }
+      ]
+    },
+    {
+      "id": "AL-C5",
+      "text": "CONFLICT (form, not flow): the allocation colour boundary at exactly 70% is green in D02 ¶179–180 and orange in D02 ¶292–293 and D04 ¶231–232; red is #E64345 in D02 ¶178 and #FF0000 in D04 ¶230. Not modelled.",
+      "support": [
+        {
+          "cite": "D02 ¶179–180",
+          "quote": "| ≤ 70% | `SUCCESS` (Green) | Normal allocation |"
+        },
+        {
+          "cite": "D02 ¶292–293",
+          "quote": "| Orange (WARN) | 70%–99% | Employees and Subcontractors |"
+        },
+        {
+          "cite": "D04 ¶231–232",
+          "quote": "- Orange (`#FFA500`) — Allocation 70–99%"
+        },
+        {
+          "cite": "D02 ¶178",
+          "quote": "| ≥ 100% | `#E64345` (Red) |"
+        },
+        {
+          "cite": "D04 ¶230",
+          "quote": "- Red (`#FF0000`) — Allocation ≥ 100%"
+        }
+      ]
+    },
+    {
+      "id": "AL-5",
+      "text": "Process name template is dynamic (D03 ¶49); the BPMN process name is the static model name.",
+      "support": [
+        {
+          "cite": "D03 ¶49",
+          "quote": "\"NSSOL Allocations - \" & pv!projectInfo[projectName]"
+        }
+      ]
+    },
+    {
+      "id": "AL-6",
+      "text": "The documented projectInfo default (D03 ¶61) is not carried into the spec.",
+      "support": [
+        {
+          "cite": "D03 ¶61",
+          "quote": "projectId = 3 (default for dev)"
+        }
+      ]
+    },
+    {
+      "id": "AL-7",
+      "text": "Target-design proposals pending approval: class names (ProjectRegistration reused for NSSOL Projects; Employee, Subcontractor, MapEmployee, MapSubcontractor), DateTime as java.time.LocalDateTime, list variables as java.util.List, and every user-task output."
+    },
+    {
+      "id": "AL-8",
+      "text": "The merged return flows carry no condition, so empCancel and SubconCancel are set but never read: of the 3 cancel paths D03 ¶225 counts, only allocationCancel is routed. Cancelling the employee search is documented as returning without selection (D04 ¶251); for the subcontractor search D04 ¶265 says only that the flag is set. Nothing in the process enforces either.",
+      "support": [
+        {
+          "cite": "D03 ¶225",
+          "quote": "| Cancel Supported | Yes (cancel PV) | Yes (3 cancel paths) | N/A |"
+        },
+        {
+          "cite": "D04 ¶251",
+          "quote": "Cancel → returns without selection (sets `empCancel=true`)"
+        },
+        {
+          "cite": "D04 ¶265",
+          "quote": "- Cancel → sets `SubconCancel=true`"
+        }
+      ]
+    },
+    {
+      "id": "AL-9",
+      "text": "Write contents are only partly documented. D03 ¶126 lists updatedBy and updatedOn among the fields of each written employee record, but the screen initialises only employee, project, createdBy, createdOn and isActive (D03 ¶140–145), D05 ¶343–344 sets updatedBy/updatedOn on record update, and D02 ¶287 says all four audit fields are captured at allocation time. The list written is existing rows merged with new ones (D03 ¶146), so the write is an upsert; whether soft-deleted rows reach it is not stated. Nothing is documented for the subcontractor records beyond D03 ¶130. Both lists default to null (D03 ¶64–65) and both writes are unconditional.",
+      "support": [
+        {
+          "cite": "D03 ¶126",
+          "quote": "Each record includes: employee data, projectId, createdBy, createdOn, updatedBy, updatedOn, isActive=true"
+        },
+        {
+          "cite": "D03 ¶140–145",
+          "quote": "new `NSSOL Map Employees` record objects are initialized with:"
+        },
+        {
+          "cite": "D05 ¶343–344",
+          "quote": "| `updatedBy` | Record update | `loggedInUser()` |"
+        },
+        {
+          "cite": "D02 ¶287",
+          "quote": "automatically at allocation time"
+        },
+        {
+          "cite": "D03 ¶146",
+          "quote": "Existing DB records and newly selected records are merged using `append()`"
+        },
+        {
+          "cite": "D03 ¶130",
+          "quote": "Saves pv!assignedSubcontractors to NSSOL Map Subcontractors record type"
+        },
+        {
+          "cite": "D03 ¶64–65",
+          "quote": "| `assignedEmployees` | NSSOL Map Employees list | Yes | No | null |"
+        }
+      ]
+    },
+    {
+      "id": "AL-10",
+      "text": "Lifecycle settings are not carried: GMT+12, archive 7 days after completion, delete 7 days after archival, no notifications (D03 ¶50–54).",
+      "support": [
+        {
+          "cite": "D03 ¶50–54",
+          "quote": "| Auto-Delete | 7 days after archival |"
+        }
+      ]
+    },
+    {
+      "id": "AL-11",
+      "text": "empCancel and SubconCancel are documented as internal, not parameters (D03 ¶70–71); the spec declares all variables alike.",
+      "support": [
+        {
+          "cite": "D03 ¶70–71",
+          "quote": "| `empCancel` | Boolean | No (internal) | No | null |"
+        }
+      ]
+    },
+    {
+      "id": "AL-12",
+      "text": "The two search screens have no documented rule-input list: D04 gives none, and D06 ¶182–183 says process variables are passed to them as ri! without naming them. No inputs are bound.",
+      "support": [
+        {
+          "cite": "D06 ¶182–183",
+          "quote": "PVs → ri! (selectedEmployees written back)"
+        }
+      ]
+    }
   ],
   "tests": [
     {
@@ -170,24 +484,7 @@
         },
         {
           "task": "allocationConfirmation",
-          "complete": {
-            "assignedEmployees": [
-              {
-                "employeeMappedId": 1,
-                "projectId": 3,
-                "employeeId": 10,
-                "role": "Site Manager"
-              }
-            ],
-            "assignedSubcontractors": [
-              {
-                "subconMappedId": 1,
-                "projectId": 3,
-                "subconId": 20,
-                "companyName": "Acme Subcontracting"
-              }
-            ]
-          }
+          "complete": {}
         }
       ],
       "expect": {

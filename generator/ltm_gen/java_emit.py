@@ -38,20 +38,23 @@ def emit_pojo(package: str, class_name: str, fields: list[dict], evidence: str) 
 
 
 def emit_store(package: str, class_name: str, model_class: str, operation: str,
-               assumption: str, param: str | None = None, is_list: bool = False) -> str:
+               assumption: str, param: str | None = None, is_list: bool = False,
+               scalar: bool = False) -> str:
     """Test-double service. `param` names the saved argument (default: the
-    model class in lowerCamel); `is_list` makes it a List of the model."""
+    model class in lowerCamel); `is_list` makes it a List of the model; `scalar`
+    means `model_class` is a plain qualified Java type (e.g. java.lang.Boolean),
+    not a generated model, so nothing is imported."""
     param = param or model_class[0].lower() + model_class[1:]
     payload = f"List<{model_class}>" if is_list else model_class
-    field = "records" if is_list else "registration"
+    field = "records" if is_list else "value" if scalar else "registration"
+    model_import = "" if scalar else f"import {package}.model.{model_class};\n"
     return f'''package {package}.service;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import {package}.model.{model_class};
-
+{model_import}
 /**
  * TEST DOUBLE — generated. {assumption}
  */
@@ -135,7 +138,8 @@ def _scenario_test(t: dict, variables: dict, task_names: dict, stores: dict,
                    models: set[str]) -> str:
     """A scenario with `steps`: start values, then each user task completed in order.
     expect.saves maps store class -> number of save calls; expect.savedLists maps
-    store class -> size of the list saved by its first call."""
+    store class -> size of the list saved by its first call; expect.savedValues maps
+    store class -> the scalar value saved by its first call."""
     setup, lines = [], []
     start = _java_map(t.get("start", {}), variables, setup, models, f"test {t['name']} start", "start")
     lines.append("        var model = process.createModel();")
@@ -164,6 +168,8 @@ def _scenario_test(t: dict, variables: dict, task_names: dict, stores: dict,
         lines.append(f"        assertThat({store}.saves()).hasSize({expect.get('saves', {}).get(store, 0)});")
     for store, size in expect.get("savedLists", {}).items():
         lines.append(f"        assertThat({store}.saves().get(0).records()).hasSize({size});")
+    for store, value in expect.get("savedValues", {}).items():
+        lines.append(f"        assertThat({store}.saves().get(0).value()).isEqualTo({_literal(value)});")
     return f"""
     @Test
     void {t["name"]}() {{
@@ -188,6 +194,9 @@ def emit_process_test(spec: dict) -> str:
               if n["type"] == "serviceTask"}
     task_names = {n["id"]: n["name"] for n in spec["nodes"] if n["type"] == "userTask"}
     scenario_models: set[str] = set()
+    groups = sorted({g for n in spec["nodes"] for g in n.get("candidateGroups", [])})
+    identity = ('new StaticIdentityProvider("tester", java.util.List.of('
+                + ", ".join(f'"{g}"' for g in groups) + "))") if groups else 'new StaticIdentityProvider("tester")'
 
     # Single-task scenarios (no `steps`): one record variable, one store, one form.
     legacy = [t for t in spec["tests"] if "steps" not in t]
@@ -265,7 +274,7 @@ import io.quarkus.test.junit.QuarkusTest;
 class {p["id"][0].upper() + p["id"][1:]}ProcessTest {{
 
     private static final SecurityPolicy USER =
-            SecurityPolicy.of(new StaticIdentityProvider("tester"));
+            SecurityPolicy.of({identity});
 
     @Inject
     @Named("{p["id"]}")

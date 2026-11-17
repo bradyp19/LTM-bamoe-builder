@@ -1,0 +1,95 @@
+{
+  "process": "NSSOL Update Language Toggle",
+  "design": {
+    "nodes": {
+      "start": {
+        "notes": "Started inline from SAIL by NSSOL_GRID_Projects via a!startProcess3 (D03 ¶193–203), not by a record action.",
+        "support": [
+          {"cite": "D03 ¶193", "quote": "triggered **inline from SAIL**"},
+          {"cite": "D03 ¶181", "quote": "Receives: toggleValue (boolean)"}
+        ]
+      },
+      "updateConstant": {
+        "type": "serviceTask",
+        "service": {"class": "nssol.service.LanguageToggleStore", "operation": "update"},
+        "inputs": ["toggleValue"],
+        "outputs": ["toggleValue"],
+        "notes": "TL-1: the diagram declares 'Script Task / Service Task'; modelled as a service task. LanguageToggleStore is a proposed test double standing in for the NSSOL_BOOL_LANGUAGE_TOGGLE constant (TL-2).",
+        "support": [
+          {"cite": "D03 ¶185", "quote": "Updates NSSOL_BOOL_LANGUAGE_TOGGLE constant"},
+          {"cite": "D03 ¶186", "quote": "Sets constant value = pv!toggleValue"}
+        ]
+      }
+    }
+  },
+  "assumptions": [
+    {"id": "TL-1", "text": "The flow node is declared 'Script Task / Service Task' (D03 ¶184), so its type is undecided in the source. Modelled as a service task bound to a CDI bean.",
+     "support": [
+       {"cite": "D03 ¶184", "quote": "[Script Task / Service Task: Update Constant]"}
+     ]},
+    {"id": "TL-2", "text": "BAMOE has no Appian constants. LanguageToggleStore (proposed test double) records the value written to NSSOL_BOOL_LANGUAGE_TOGGLE; where the global value is persisted and how the interfaces read it back is unspecified (D03 ¶185–186, D06 ¶101). The task returns toggleValue unchanged.",
+     "support": [
+       {"cite": "D03 ¶185–186", "quote": "Sets constant value = pv!toggleValue"},
+       {"cite": "D06 ¶101", "quote": "all interfaces read from this same constant at render time"}
+     ]},
+    {"id": "TL-3", "text": "toggleValue is documented as not required and without a default (D03 ¶175); behaviour when it is null is undocumented, so it is passed to the write unchanged and no scenario covers it.",
+     "support": [
+       {"cite": "D03 ¶175", "quote": "| `toggleValue` | Boolean | Yes | No | The new value to write to the language constant |"}
+     ]},
+    {"id": "TL-4", "text": "The flip happens in the caller, before the process starts: SAIL flips local!isToggleOn and passes the new value (D03 ¶196–203, D04 ¶128–130). The process flips nothing and the SAIL trigger is not modelled.",
+     "support": [
+       {"cite": "D03 ¶198", "quote": "if(local!isToggleOn, false(), true())  // flip the toggle"},
+       {"cite": "D04 ¶130", "quote": "Passes new `toggleValue` to process"}
+     ]},
+    {"id": "TL-5", "text": "No start restriction is coded: the role map has no INITIATOR group (D03 ¶242), and D07 accepts this as a POC risk while suggesting a restriction to NP Administrators for production (D07 ¶134, ¶216). The dev profile has auth disabled (same gap as C3 for Register Project).",
+     "support": [
+       {"cite": "D03 ¶242", "quote": "No explicit INITIATOR or MANAGER group assignments (open to all authenticated users)"},
+       {"cite": "D07 ¶134", "quote": "in production, this toggle button may need to be restricted to NP Administrators only"},
+       {"cite": "D07 ¶216", "quote": "Restrict to NP Administrators if needed"}
+     ]},
+    {"id": "TL-6", "text": "Appian lifecycle attributes (timezone GMT+12, auto-archive 7 days, auto-delete 0 days, notifications) are not carried into the BPMN; the BAMOE skeleton has no equivalent.",
+     "support": [
+       {"cite": "D03 ¶164", "quote": "| Timezone | GMT+12 |"},
+       {"cite": "D03 ¶165", "quote": "| Auto-Archive | 7 days after completion |"},
+       {"cite": "D03 ¶166", "quote": "| Auto-Delete | 0 days (immediate delete after archive) |"}
+     ]},
+    {"id": "TL-7", "text": "Target-design proposals pending approval: service class nssol.service.LanguageToggleStore with operation update, taking and returning the Boolean toggleValue; scenarios are generated as start-only (the process has no user task)."},
+    {"id": "TL-C1", "text": "CONFLICT: D03 ¶211 calls NSSOL_PM_UPDATE_LANGUAGE_TOGGLE a constant holding the process model reference; D04 ¶364 documents the same UUID suffix _2006990 as a 'Utility Interface'. Neither object is modelled (the process is started directly), so the flow is unaffected; what kind of object it is stays open.",
+     "support": [
+       {"cite": "D03 ¶211", "quote": "The constant `NSSOL_PM_UPDATE_LANGUAGE_TOGGLE` (`_a-..._2006990`) holds the reference to this process model"},
+       {"cite": "D04 ¶364", "quote": "**Type:** Utility Interface"}
+     ]},
+    {"id": "TL-C2", "text": "CONFLICT: D03 ¶165–166 and D07 ¶189 give auto-archive after 7 days and then immediate (0 days) deletion, while D03 ¶206 says the process 'self-deletes' right after running. Whether the instance disappears at once or on day 7 is not stated consistently. Not modelled (see TL-6).",
+     "support": [
+       {"cite": "D03 ¶206", "quote": "it runs immediately, updates the constant, and self-deletes (auto-delete = 0 days)"},
+       {"cite": "D03 ¶165", "quote": "| Auto-Archive | 7 days after completion |"},
+       {"cite": "D07 ¶189", "quote": "| NSSOL Update Language Toggle | 7 days | **0 days** (immediate) | Utility — deleted instantly |"}
+     ]},
+    {"id": "TL-C3", "text": "CONFLICT: D01 ¶120 says the process persists 'the preference' (reads as per user); D07 ¶134 says it changes the language for every user. Model follows the flow: one global write, no user key.",
+     "support": [
+       {"cite": "D01 ¶120", "quote": "triggers the `NSSOL Update Language Toggle` process to persist the preference"},
+       {"cite": "D07 ¶134", "quote": "Any NP User can change the language for all users application-wide"}
+     ]},
+    {"id": "TL-C4", "text": "CONFLICT: the SAIL control that starts the process is a globe icon link in D01 ¶120 and a labelled toolbar button ('Switch Language' / '言語切替') in D04 ¶125–126. UI only; the process is unaffected.",
+     "support": [
+       {"cite": "D01 ¶120", "quote": "via a globe icon link"},
+       {"cite": "D04 ¶126", "quote": "Label: \"Switch Language\" (EN) / \"言語切替\" (JP)"}
+     ]}
+  ],
+  "tests": [
+    {
+      "name": "toggleOn_writesTrue",
+      "start": {"toggleValue": true},
+      "steps": [],
+      "expect": {"status": "COMPLETED", "saves": {"LanguageToggleStore": 1},
+                 "savedValues": {"LanguageToggleStore": true}}
+    },
+    {
+      "name": "toggleOff_writesFalse",
+      "start": {"toggleValue": false},
+      "steps": [],
+      "expect": {"status": "COMPLETED", "saves": {"LanguageToggleStore": 1},
+                 "savedValues": {"LanguageToggleStore": false}}
+    }
+  ]
+}

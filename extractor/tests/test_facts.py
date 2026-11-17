@@ -1,6 +1,6 @@
 """Source facts read from the real LTM documents, each with its ¶ anchor."""
 
-from ltm_extract import cite
+from ltm_extract import cite, cite_all
 from ltm_extract.facts import interfaces, process_models, record_types
 
 RP = "NSSOL Register Project"
@@ -30,7 +30,7 @@ class TestProcessModels:
             ("isUpdate", "Boolean", False, "D03 ¶27"),
             ("projectRegistration", "NSSOL Projects record", False, "D03 ¶28"),
         ]
-        assert p.variables_anchor.cite() == "D03 ¶24–28"
+        assert cite_all(p.variables_anchors) == "D03 ¶24–28"
 
     def test_register_project_flow_is_image_only(self, real_docset):
         flow = process_models(real_docset)[RP].flow
@@ -60,7 +60,7 @@ class TestProcessModels:
         assert by_name["assignedEmployees"].type == "NSSOL Map Employees list"
         assert by_name["empCancel"].parameter == "No (internal)"
         assert by_name["projectInfo"].extra == {"Default": "projectId = 3 (default for dev)"}
-        assert p.variables_anchor.cite() == "D03 ¶59–71"
+        assert cite_all(p.variables_anchors) == "D03 ¶59–71"
 
     def test_attributes_and_anchor(self, real_docset):
         p = process_models(real_docset)[ALLOC]
@@ -80,7 +80,7 @@ class TestRecordTypes:
         r = record_types(real_docset)["NSSOL Projects"]
         assert r.primary_key == "projectId"
         assert len(r.fields) == 27
-        assert r.fields_anchor.cite() == "D05 ¶48–76"
+        assert cite_all(r.fields_anchors) == "D05 ¶48–76"
         first, status, last = r.fields[0], r.fields[9], r.fields[-1]
         assert (first.name, first.data_type, first.nullable, first.anchor.cite()) == (
             "projectId", "Integer", False, "D05 ¶50")
@@ -88,9 +88,19 @@ class TestRecordTypes:
             "status", "Text", True, "D05 ¶59")
         assert (last.name, last.data_type, last.nullable) == ("isActive", "Boolean", False)
 
+    def test_inline_fields_are_not_lost(self, real_docset):
+        r = record_types(real_docset)["NSSSOL_test"]
+        assert [(f.name, f.data_type, f.nullable, f.anchor.cite()) for f in r.fields] == [
+            ("id", "Integer", None, "D05 ¶282"), ("textValue", "Text", None, "D05 ¶282")]
+        assert r.primary_key == "id"
+        assert cite_all(r.fields_anchors) == "D05 ¶282"
+
+    def test_six_record_types(self, real_docset):
+        assert len(record_types(real_docset)) == 6
+
     def test_map_employees_fields(self, real_docset):
         r = record_types(real_docset)["NSSOL Map Employees"]
-        assert r.fields_anchor.cite() == "D05 ¶177–207"
+        assert cite_all(r.fields_anchors) == "D05 ¶177–207"
         assert {f.data_type for f in r.fields} == {"Integer", "Text", "Decimal",
                                                    "DateTime", "Boolean"}
 
@@ -109,7 +119,7 @@ class TestInterfaces:
     def test_allocation_screen(self, real_docset):
         i = interfaces(real_docset)["NSSOL_SEC_Allocation"]
         assert i.anchor.cite() == "D04 ¶168–237"
-        assert i.rule_inputs_anchor.cite() == "D04 ¶174–184"
+        assert cite_all(i.rule_inputs_anchors) == "D04 ¶174–184"
         assert [r.name for r in i.rule_inputs] == [
             "projectInfo", "selectedEmployees", "selectedSubcontractors",
             "assignedEmployees", "assignedSubcontractors", "isAddEmployee",
@@ -118,7 +128,35 @@ class TestInterfaces:
     def test_interface_without_rule_inputs(self, real_docset):
         i = interfaces(real_docset)["NSSOL_GRID_Employee_Search_Screen"]
         assert i.anchor.cite() == "D04 ¶241–251"
-        assert i.rule_inputs == [] and i.rule_inputs_anchor is None
+        assert i.rule_inputs == [] and i.rule_inputs_anchors == []
 
     def test_sixteen_interfaces(self, real_docset):
-        assert len(interfaces(real_docset)) == 16
+        found = interfaces(real_docset)
+        assert len(found) == 16
+        assert all(i.anchor.doc == "D04" for i in found.values())
+
+    def test_rule_inputs_table_headed_parameter(self, real_docset):
+        i = interfaces(real_docset)["NSSOL_COLUMNCHART_EMPLOYEE_SIMULATION"]
+        assert [(r.name, r.anchor.cite()) for r in i.rule_inputs] == [
+            ("targetOrganization", "D04 ¶325"), ("headOffice", "D04 ¶326"),
+            ("probability", "D04 ¶327"), ("role", "D04 ¶328"), ("rank", "D04 ¶329"),
+            ("fiscalYear", "D04 ¶330")]
+        assert cite_all(i.rule_inputs_anchors) == "D04 ¶323–330"
+
+
+class TestEveryRowIsAnchoredAtItsOwnParagraph:
+    def test_all_documents(self, real_docset):
+        checked = 0
+        facts = []
+        for p in process_models(real_docset).values():
+            facts += [(v.anchor, v.name) for v in p.variables]
+        for r in record_types(real_docset).values():
+            facts += [(f.anchor, f.name) for f in r.fields]
+        for i in interfaces(real_docset).values():
+            facts += [(x.anchor, x.name) for x in i.rule_inputs]
+            facts += [(x.anchor, x.label) for x in i.form_fields]
+        for anchor, name in facts:
+            assert anchor.start == anchor.end
+            assert name in real_docset.documents[anchor.doc].paragraphs[anchor.start].text
+            checked += 1
+        assert checked > 150
