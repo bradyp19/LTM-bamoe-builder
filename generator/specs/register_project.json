@@ -10,16 +10,18 @@
       "fields": [
         {"name": "projectId", "type": "Integer"},
         {"name": "projectName", "type": "String"},
-        {"name": "isActive", "type": "Boolean"},
-        {"name": "status", "type": "String"},
         {"name": "startDate", "type": "java.time.LocalDate"},
         {"name": "endDate", "type": "java.time.LocalDate"},
         {"name": "orderDate", "type": "java.time.LocalDate"},
-        {"name": "statusChanged", "type": "java.time.LocalDate"},
         {"name": "orderAmountMillionYen", "type": "java.math.BigDecimal"},
         {"name": "expectedOrderAmount", "type": "java.math.BigDecimal"},
         {"name": "orderFiscalYear", "type": "String"},
+        {"name": "statusChanged", "type": "java.time.LocalDate"},
+        {"name": "status", "type": "String"},
         {"name": "probability", "type": "String"},
+        {"name": "completedProjects", "type": "Integer"},
+        {"name": "plannedHeadCount", "type": "Integer"},
+        {"name": "actualHeadcount", "type": "Integer"},
         {"name": "projectCategory", "type": "String"},
         {"name": "client", "type": "String"},
         {"name": "inquirySource", "type": "String"},
@@ -32,9 +34,7 @@
         {"name": "siteRepresentative", "type": "String"},
         {"name": "specialNotes", "type": "String"},
         {"name": "primeContractor", "type": "String"},
-        {"name": "completedProjects", "type": "Integer"},
-        {"name": "plannedHeadCount", "type": "Integer"},
-        {"name": "actualHeadcount", "type": "Integer"}
+        {"name": "isActive", "type": "Boolean"}
       ],
       "evidence": "D05 ¶48–76"
     }

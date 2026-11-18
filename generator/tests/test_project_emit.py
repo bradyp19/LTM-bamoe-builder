@@ -3,14 +3,21 @@ from pathlib import Path
 
 import pytest
 
-from ltm_gen.project_emit import emit_project
+from ltm_gen import emit_application
 
 SPECS = Path(__file__).parents[1] / "specs"
 SKELETON = Path(__file__).parents[2] / "register-project"
 
 
 def _load(name):
-    return json.loads((SPECS / f"{name}.json").read_text())
+    spec = json.loads((SPECS / f"{name}.json").read_text())
+    spec.setdefault("application", {"name": "NSSOL POC", "evidence": "test fixture"})
+    return spec
+
+
+def emit_project(spec, skeleton, out):
+    """An application of one process: what these tests checked per process."""
+    return emit_application([spec], skeleton, out)
 
 
 @pytest.fixture(scope="module")
@@ -71,7 +78,7 @@ class TestGeneratedProjectCompilesAndRunsOnBamoe:
 
     def test_scenario_tests_use_one_work_item_per_step(self, allocations):
         src = (allocations / "src/test/java/nssol/AllocationsProcessTest.java").read_text()
-        assert src.count("@Test") == 3
+        assert src.count("@Test\n") == 3
         assert 'getName()).isEqualTo("Allocation Confirmation")' in src
         assert "step1_assignedEmployees0" in src
         assert "step2_assignedEmployees0" not in src  # confirmation must not replace the lists
@@ -105,9 +112,9 @@ class TestScalarServiceStub:
 class TestProcessWithoutUserTasks:
     def test_scenarios_start_the_instance_and_check_the_saved_value(self, toggle):
         src = (toggle / "src/test/java/nssol/UpdateLanguageToggleProcessTest.java").read_text()
-        assert src.count("@Test") == 2
+        assert src.count("@Test\n") == 2
         assert "workItems" not in src
-        assert 'model.update(Map.of("toggleValue", true));' in src
+        assert 'Map<String, Object> sent0 = Map.of("toggleValue", true);' in src
         assert "assertThat(LanguageToggleStore.saves()).hasSize(1);" in src
         assert "assertThat(LanguageToggleStore.saves().get(0).value()).isEqualTo(false);" in src
         assert "import nssol.model" not in src
