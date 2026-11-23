@@ -341,13 +341,21 @@ async function renderInstances() {
   for (const p of APP.processes) {
     const q = `{ GetAllProcessInstancesStateByProcessId(processId: "${p.id}", ${ALL_ROWS}) { processInstanceId eventType eventDate } }`;
     const r = await api("POST", "/data-audit/q", { query: q });
+    // This query keeps one row per instance, and BAMOE can store an ACTIVE event 1 ms after
+    // COMPLETED, so the row may say ACTIVE for a finished instance: resolve the status from
+    // each instance's state history, where a terminal event wins (as in the detail view).
+    const ids = [...new Set(r.data.GetAllProcessInstancesStateByProcessId.map((s) => s.processInstanceId))];
     const latest = new Map();
-    for (const s of r.data.GetAllProcessInstancesStateByProcessId) {
-      const prev = latest.get(s.processInstanceId);
-      // A terminal event wins even when a later ACTIVE event is recorded (seen 1 ms after COMPLETED).
-      const rank = (e) => (TERMINAL.includes(e.eventType) ? 1 : 0);
-      const wins = !prev || rank(s) > rank(prev) || (rank(s) === rank(prev) && s.eventDate > prev.eventDate);
-      if (wins) latest.set(s.processInstanceId, s);
+    if (ids.length) {
+      const hq = "{ " + ids.map((id, i) =>
+        `i${i}: GetProcessInstancesStateHistory(processInstanceId: "${id}", ${ALL_ROWS}) { eventType eventDate }`).join(" ") + " }";
+      const h = await api("POST", "/data-audit/q", { query: hq });
+      ids.forEach((id, i) => {
+        const states = h.data[`i${i}`] || [];
+        const newest = states.reduce((a, b) => (!a || b.eventDate > a.eventDate ? b : a), null);
+        const s = states.find((e) => TERMINAL.includes(e.eventType)) || newest;
+        if (s) latest.set(id, { processInstanceId: id, eventType: s.eventType, eventDate: s.eventDate });
+      });
     }
     for (const s of latest.values()) {
       body.append(el("tr", { "data-instance": s.processInstanceId },
