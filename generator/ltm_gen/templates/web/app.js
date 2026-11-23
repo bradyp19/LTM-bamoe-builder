@@ -36,12 +36,15 @@ async function api(method, path, body) {
 
 // ---- data-audit (what the running service recorded for an instance) ----
 
+// Without pagination the audit queries return only the newest 10 rows.
+const ALL_ROWS = "pagination: { limit: 100000, offset: 0 }";
+
 async function audit(id) {
-  const q = `{ nodes: GetAllProcessInstancesNodeByProcessInstanceId(processInstanceId: "${id}") { eventId eventType nodeType nodeName eventDate }
-    variables: GetAllProcessInstancesVariableByProcessInstanceId(processInstanceId: "${id}") { variableName variableValue eventDate }
-    history: GetAllProcessInstancesVariableHistoryByProcessInstanceId(processInstanceId: "${id}") { variableName logs { variableValue eventDate } }
-    states: GetProcessInstancesStateHistory(processInstanceId: "${id}") { eventType eventDate }
-    tasks: GetAllUserTaskInstanceState { processInstanceId userTaskInstanceId name state eventType eventDate } }`;
+  const q = `{ nodes: GetAllProcessInstancesNodeByProcessInstanceId(processInstanceId: "${id}", ${ALL_ROWS}) { eventId eventType nodeType nodeName eventDate }
+    variables: GetAllProcessInstancesVariableByProcessInstanceId(processInstanceId: "${id}", ${ALL_ROWS}) { variableName variableValue eventDate }
+    history: GetAllProcessInstancesVariableHistoryByProcessInstanceId(processInstanceId: "${id}", ${ALL_ROWS}) { variableName logs { variableValue eventDate } }
+    states: GetProcessInstancesStateHistory(processInstanceId: "${id}", ${ALL_ROWS}) { eventType eventDate }
+    tasks: GetAllUserTaskInstanceState(${ALL_ROWS}) { processInstanceId userTaskInstanceId name state eventType eventDate } }`;
   const r = await api("POST", "/data-audit/q", { query: q });
   if (r.errors) throw new Error("data-audit: " + JSON.stringify(r.errors));
   const d = r.data;
@@ -319,7 +322,7 @@ async function renderInstances() {
   const body = $("#instances tbody");
   body.replaceChildren();
   for (const p of APP.processes) {
-    const q = `{ GetAllProcessInstancesStateByProcessId(processId: "${p.id}") { processInstanceId eventType eventDate } }`;
+    const q = `{ GetAllProcessInstancesStateByProcessId(processId: "${p.id}", ${ALL_ROWS}) { processInstanceId eventType eventDate } }`;
     const r = await api("POST", "/data-audit/q", { query: q });
     const latest = new Map();
     for (const s of r.data.GetAllProcessInstancesStateByProcessId) {

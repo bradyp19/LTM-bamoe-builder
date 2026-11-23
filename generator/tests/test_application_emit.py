@@ -58,6 +58,17 @@ class TestOneProject:
         props = (project / "src/main/resources/application.properties").read_text()
         assert props.count("quarkus.test.flat-class-path=true") == 1
 
+    def test_dev_pool_keeps_idle_h2_connections(self, project):
+        props = (project / "src/main/resources/application.properties").read_text()
+        assert "%dev.quarkus.datasource.jdbc.idle-removal-interval=0S" in props
+
+    def test_audit_queries_request_all_rows(self, project):
+        res = project / "src/main/resources/META-INF/resources/ui/app.js"
+        audit = next(project.rglob("StepAudit.java")).read_text()
+        for text in (res.read_text(), audit):
+            assert "pagination: { limit: 100000, offset: 0 }" in text
+            assert "GetAllUserTaskInstanceState {" not in text
+
     def test_webpage_denied_outside_dev(self, project):
         props = (project / "src/main/resources/application.properties").read_text()
         assert "%prod.quarkus.http.auth.permission.webpage.policy=deny" in props

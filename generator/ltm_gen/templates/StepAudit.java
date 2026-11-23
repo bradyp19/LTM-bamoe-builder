@@ -133,11 +133,14 @@ public final class StepAudit {
         return n.path("eventType").asText() + " " + n.path("nodeType").asText() + " '" + n.path("nodeName").asText() + "'";
     }
 
+    // Without pagination the audit queries return only the newest 10 rows.
+    private static final String ALL_ROWS = "pagination: { limit: 100000, offset: 0 }";
+
     private Snapshot snapshot(String id) {
-        String q = "{ nodes: GetAllProcessInstancesNodeByProcessInstanceId(processInstanceId: \"" + id + "\") { eventId eventType nodeType nodeName nodeInstanceId } "
-                + "variables: GetAllProcessInstancesVariableByProcessInstanceId(processInstanceId: \"" + id + "\") { variableName variableValue } "
-                + "states: GetProcessInstancesStateHistory(processInstanceId: \"" + id + "\") { eventType state } "
-                + "tasks: GetAllUserTaskInstanceState { processInstanceId userTaskInstanceId name state eventType } }";
+        String q = "{ nodes: GetAllProcessInstancesNodeByProcessInstanceId(processInstanceId: \"" + id + "\", " + ALL_ROWS + ") { eventId eventType nodeType nodeName nodeInstanceId } "
+                + "variables: GetAllProcessInstancesVariableByProcessInstanceId(processInstanceId: \"" + id + "\", " + ALL_ROWS + ") { variableName variableValue } "
+                + "states: GetProcessInstancesStateHistory(processInstanceId: \"" + id + "\", " + ALL_ROWS + ") { eventType state } "
+                + "tasks: GetAllUserTaskInstanceState(" + ALL_ROWS + ") { processInstanceId userTaskInstanceId name state eventType } }";
         JsonNode data = query(q);
         List<JsonNode> nodes = new ArrayList<>();
         data.path("nodes").forEach(nodes::add);
