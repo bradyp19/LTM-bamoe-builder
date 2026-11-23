@@ -173,7 +173,11 @@ Services in `service/` are **test doubles**, not production persistence.
 
 - Build and test: `mvn -Pdevelopment -Dquarkus.test.profile=dev clean package`
   (each test writes its step audit to `logs/<processId>-audit.json`)
-- Dev run with the user webpage at http://localhost:8080/ui/ : `mvn -Pdevelopment quarkus:dev`
+- Run with the user webpage at http://localhost:8080/ui/ (dev profile, packaged app):
+  `mvn -Pdevelopment -Dquarkus.profile=dev -DskipTests clean package`, then
+  `java -Dquarkus.profile=dev -Dquarkus.http.host=127.0.0.1 -jar target/quarkus-app/quarkus-run.jar`.
+  Not `quarkus:dev` when a process has list variables: in dev mode Kogito cannot
+  deserialize the list elements (ClassNotFoundException for the model class).
 
 The webpage is served only in the `%dev` profile, where authentication is off.
 """
