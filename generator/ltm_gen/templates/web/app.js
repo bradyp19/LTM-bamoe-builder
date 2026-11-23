@@ -327,9 +327,10 @@ async function renderInstances() {
     const latest = new Map();
     for (const s of r.data.GetAllProcessInstancesStateByProcessId) {
       const prev = latest.get(s.processInstanceId);
-      const later = !prev || s.eventDate > prev.eventDate ||
-        (s.eventDate === prev.eventDate && TERMINAL.includes(s.eventType));
-      if (later) latest.set(s.processInstanceId, s);
+      // A terminal event wins even when a later ACTIVE event is recorded (seen 1 ms after COMPLETED).
+      const rank = (e) => (TERMINAL.includes(e.eventType) ? 1 : 0);
+      const wins = !prev || rank(s) > rank(prev) || (rank(s) === rank(prev) && s.eventDate > prev.eventDate);
+      if (wins) latest.set(s.processInstanceId, s);
     }
     for (const s of latest.values()) {
       body.append(el("tr", { "data-instance": s.processInstanceId },
