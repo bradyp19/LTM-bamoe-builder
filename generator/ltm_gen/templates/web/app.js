@@ -346,11 +346,13 @@ async function renderInstances() {
     // each instance's state history, where a terminal event wins (as in the detail view).
     const ids = [...new Set(r.data.GetAllProcessInstancesStateByProcessId.map((s) => s.processInstanceId))];
     const latest = new Map();
-    if (ids.length) {
-      const hq = "{ " + ids.map((id, i) =>
+    // Batches keep each query under the GraphQL token limit (about 680 aliases).
+    for (let from = 0; from < ids.length; from += 200) {
+      const batch = ids.slice(from, from + 200);
+      const hq = "{ " + batch.map((id, i) =>
         `i${i}: GetProcessInstancesStateHistory(processInstanceId: "${id}", ${ALL_ROWS}) { eventType eventDate }`).join(" ") + " }";
       const h = await api("POST", "/data-audit/q", { query: hq });
-      ids.forEach((id, i) => {
+      batch.forEach((id, i) => {
         const states = h.data[`i${i}`] || [];
         const newest = states.reduce((a, b) => (!a || b.eventDate > a.eventDate ? b : a), null);
         const s = states.find((e) => TERMINAL.includes(e.eventType)) || newest;
