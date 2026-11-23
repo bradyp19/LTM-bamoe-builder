@@ -283,9 +283,13 @@ function renderStart() {
   }
 }
 
+// Overlapping refreshes (tab click + Refresh) must not append to the same table.
+let inboxRun = 0;
+let instancesRun = 0;
+
 async function renderInbox() {
-  const body = $("#inbox tbody");
-  body.replaceChildren();
+  const run = ++inboxRun;
+  const body = document.createElement("tbody");
   for (const p of APP.processes) {
     if (!p.userTasks.length) continue;
     const instances = await api("GET", p.endpoint);
@@ -301,6 +305,7 @@ async function renderInbox() {
     }
   }
   if (!body.children.length) body.append(el("tr", {}, el("td", { colspan: 5 }, "No open user tasks.")));
+  if (run === inboxRun) $("#inbox tbody").replaceChildren(...body.children);
 }
 
 function openTask(p, instanceId, spec, task) {
@@ -331,8 +336,8 @@ function openTask(p, instanceId, spec, task) {
 }
 
 async function renderInstances() {
-  const body = $("#instances tbody");
-  body.replaceChildren();
+  const run = ++instancesRun;
+  const body = document.createElement("tbody");
   for (const p of APP.processes) {
     const q = `{ GetAllProcessInstancesStateByProcessId(processId: "${p.id}", ${ALL_ROWS}) { processInstanceId eventType eventDate } }`;
     const r = await api("POST", "/data-audit/q", { query: q });
@@ -350,6 +355,7 @@ async function renderInstances() {
         el("td", {}, el("button", { onclick: () => showInstance(p, s.processInstanceId) }, "View"))));
     }
   }
+  if (run === instancesRun) $("#instances tbody").replaceChildren(...body.children);
 }
 
 async function showInstance(p, id) {
