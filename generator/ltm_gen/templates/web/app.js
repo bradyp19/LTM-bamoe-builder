@@ -59,9 +59,21 @@ async function audit(id) {
   };
 }
 
+// The audit records java.time values as arrays: LocalDate 2027-01-31 -> [2027,1,31].
+function temporalParts(text) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?)?$/.exec(text);
+  if (!m) return null;
+  const nanos = m[7] ? Number(m[7].padEnd(9, "0")) : 0;
+  return [m[1], m[2], m[3], m[4], m[5], m[6]].map((x) => Number(x || 0)).concat(nanos);
+}
+
 // Sent values are partial (unset fields are not sent); recorded records carry every field.
 function sameValue(sent, recorded) {
   if (sent === null || sent === undefined) return recorded === null || recorded === undefined;
+  if (typeof sent === "string" && Array.isArray(recorded) && temporalParts(sent)) {
+    const want = temporalParts(sent);
+    return recorded.length <= 7 && want.every((x, i) => x === Number(recorded[i] || 0));
+  }
   if (Array.isArray(sent)) {
     return Array.isArray(recorded) && sent.length === recorded.length &&
       sent.every((s, i) => sameValue(s, recorded[i]));

@@ -34,8 +34,37 @@ public final class StepAudit {
         if (a.isNumber() && b.isNumber()) {
             return a.decimalValue().compareTo(b.decimalValue());
         }
+        if (a.isTextual() && b.isArray()) {
+            List<Long> want = temporalParts(a.asText());
+            if (want != null && b.size() <= want.size()) {
+                for (int i = 0; i < want.size(); i++) {
+                    if (want.get(i) != b.path(i).asLong(0)) {
+                        return 1;
+                    }
+                }
+                return 0;
+            }
+        }
         return a.equals(b) ? 0 : 1;
     };
+
+    private static final java.util.regex.Pattern TEMPORAL = java.util.regex.Pattern.compile(
+            "(\\d{4})-(\\d{2})-(\\d{2})(?:T(\\d{2}):(\\d{2})(?::(\\d{2})(?:\\.(\\d{1,9}))?)?)?");
+
+    /** The audit records java.time values as arrays: LocalDate 2027-01-31 is [2027,1,31]. */
+    private static List<Long> temporalParts(String text) {
+        java.util.regex.Matcher m = TEMPORAL.matcher(text);
+        if (!m.matches()) {
+            return null;
+        }
+        List<Long> parts = new ArrayList<>();
+        for (int g = 1; g <= 6; g++) {
+            parts.add(m.group(g) == null ? 0L : Long.parseLong(m.group(g)));
+        }
+        String nanos = m.group(7) == null ? "0" : (m.group(7) + "000000000").substring(0, 9);
+        parts.add(Long.parseLong(nanos));
+        return parts;
+    }
 
     private static final Set<String> TERMINAL = Set.of("COMPLETED", "ABORTED", "ERROR");
 
