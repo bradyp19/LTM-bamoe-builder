@@ -73,18 +73,23 @@ function sameValue(sent, recorded) {
 
 // After every action: read the record back and compare it with what was sent.
 async function checkStep(proc, id, action, nodeName, sent, before) {
+  // Events of one step can be stored in more than one write; wait (up to ~5 s)
+  // until the step's node has been left before judging the record.
+  const seen = new Set(before.nodes.map((n) => n.eventId));
+  // Started over REST, BAMOE 9.6 records only ENTER for the start node; a task must be left (EXIT).
+  const wanted = action === "start" ? ["ENTER", "EXIT"] : ["EXIT"];
+  const exited = (nodes) => nodes.some((n) => !seen.has(n.eventId) && wanted.includes(n.eventType) && n.nodeName === nodeName);
   let after = null;
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 17; i++) {
     after = await audit(id);
-    if (after.nodes.length > before.nodes.length) break;
+    if (exited(after.nodes)) break;
     await new Promise((res) => setTimeout(res, 300));
   }
-  const seen = new Set(before.nodes.map((n) => n.eventId));
   const added = after.nodes.filter((n) => !seen.has(n.eventId));
   const problems = [];
   if (!added.length) problems.push("nothing was recorded for this step");
-  if (!added.some((n) => n.eventType === "EXIT" && n.nodeName === nodeName)) {
-    problems.push(`node history has no exit of '${nodeName}'`);
+  if (!exited(after.nodes)) {
+    problems.push(`node history has no ${action === "start" ? "record" : "exit"} of '${nodeName}'`);
   }
   for (const [k, v] of Object.entries(sent)) {
     if (!(k in after.variables)) problems.push(`variable '${k}' was sent but nothing was recorded`);
@@ -319,7 +324,9 @@ async function renderInstances() {
     const latest = new Map();
     for (const s of r.data.GetAllProcessInstancesStateByProcessId) {
       const prev = latest.get(s.processInstanceId);
-      if (!prev || s.eventDate > prev.eventDate) latest.set(s.processInstanceId, s);
+      const later = !prev || s.eventDate > prev.eventDate ||
+        (s.eventDate === prev.eventDate && TERMINAL.includes(s.eventType));
+      if (later) latest.set(s.processInstanceId, s);
     }
     for (const s of latest.values()) {
       body.append(el("tr", { "data-instance": s.processInstanceId },
