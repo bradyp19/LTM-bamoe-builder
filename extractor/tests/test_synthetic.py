@@ -352,10 +352,14 @@ class TestApplication:
 
     @pytest.mark.parametrize("quote", ["The ACME Orders_Internal application handles",
                                        "The ACME Orders\uff12 application handles"])
-    def test_longer_identifier_is_not_the_name(self, docset_with_overview, quote):
+    def test_longer_identifier_is_not_the_name(self, make_docx, quote):
+        make_docx("01_Overview.docx", ["# Application Overview", "", quote + " orders."])
+        make_docx("03_Workflow.docx", WORKFLOW, image_bytes=IMAGE_BYTES)
+        make_docx("04_Interfaces.docx", INTERFACES)
+        docset = DocSet.load(make_docx("05_Data.docx", DATA).parent)
         sup = with_application(approve_supplement(), quote=quote)
-        with pytest.raises(ExtractionError):
-            build_spec(docset_with_overview, sup)
+        with pytest.raises(ExtractionError, match="no supporting quote contains the name"):
+            build_spec(docset, sup)
 
     def test_name_followed_by_japanese(self, make_docx):
         make_docx("01_Overview.docx", ["# 概要", "", "ACME Ordersは注文を承認するアプリケーションです。"])
