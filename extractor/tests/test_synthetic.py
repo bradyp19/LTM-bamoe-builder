@@ -350,6 +350,14 @@ class TestApplication:
         with pytest.raises(ExtractionError, match="no supporting quote contains the name"):
             build_spec(docset_with_overview, sup)
 
+    def test_name_followed_by_japanese(self, make_docx):
+        make_docx("01_Overview.docx", ["# 概要", "", "ACME Ordersは注文を承認するアプリケーションです。"])
+        make_docx("03_Workflow.docx", WORKFLOW, image_bytes=IMAGE_BYTES)
+        make_docx("04_Interfaces.docx", INTERFACES)
+        docset = DocSet.load(make_docx("05_Data.docx", DATA).parent)
+        sup = with_application(approve_supplement(), quote="ACME Ordersは注文を承認する")
+        assert build_spec(docset, sup).spec["application"]["name"] == "ACME Orders"
+
     def test_quote_must_be_in_the_cited_paragraph(self, docset_with_overview):
         sup = with_application(approve_supplement(), quote="The ACME Orders application ships rockets")
         with pytest.raises(ExtractionError, match="does not contain the quoted support"):
