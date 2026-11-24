@@ -137,6 +137,16 @@ class TestCollisions:
         problems = _problems(specs, tmp_path)
         assert any("service class ProjectStore has different signatures" in p for p in problems)
 
+    def test_application_name_is_escaped_in_the_pom(self, tmp_path):
+        specs = _specs()
+        for s in specs:
+            s["application"] = {"name": "ACME Travel & Expenses <EU>", "evidence": "D01 ¶1"}
+        emit_application(specs, SKELETON, tmp_path / "out")
+        import xml.etree.ElementTree as ET
+        ns = {"m": "http://maven.apache.org/POM/4.0.0"}
+        root = ET.parse(tmp_path / "out" / "pom.xml").getroot()
+        assert root.find("m:name", ns).text == "ACME Travel & Expenses <EU>"
+
     def test_different_applications(self, tmp_path):
         specs = _specs()
         specs[2]["application"] = dict(specs[2]["application"], name="Other App")

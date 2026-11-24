@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 import shutil
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 from .bpmn_emit import emit_bpmn
 from .java_emit import emit_audit_support, emit_pojo, emit_process_test, emit_store, test_class_name
@@ -153,7 +154,7 @@ def _pom(text: str, app: dict) -> str:
         raise ApplicationError([f"skeleton pom.xml has no <artifactId>{SKELETON_ARTIFACT}</artifactId>"])
     text = re.sub(r"\s*<!-- TODO: CHANGE THIS -->", "", text, count=2)
     return text.replace(f"<artifactId>{SKELETON_ARTIFACT}</artifactId>",
-                        f"<artifactId>{artifact}</artifactId>\n  <name>{app['name']}</name>", 1)
+                        f"<artifactId>{artifact}</artifactId>\n  <name>{escape(app['name'])}</name>", 1)
 
 
 def _readme(app: dict, specs: list[dict]) -> str:
