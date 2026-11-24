@@ -240,8 +240,9 @@ class _Builder:
             return  # absent, or reported by the shape check
         self.check_claim("application", None, app["support"])
         quotes = [e.get("quote") for e in app["support"] if isinstance(e, dict)]
-        # Latin letters/digits only: Japanese prose has no spaces around a Latin name.
-        whole = re.compile(r"(?<![A-Za-z0-9])" + re.escape(app["name"]) + r"(?![A-Za-z0-9])")
+        # Identifier characters (incl. full-width) only: Japanese prose has no spaces around a name.
+        edge = "[A-Za-z0-9_\uff10-\uff19\uff21-\uff3a\uff41-\uff5a]"
+        whole = re.compile(f"(?<!{edge})" + re.escape(app["name"]) + f"(?!{edge})")
         if not any(isinstance(q, str) and whole.search(q) for q in quotes):
             self.problem(f"application: no supporting quote contains the name {app['name']!r}")
 
