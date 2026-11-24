@@ -69,6 +69,10 @@ class TestOneProject:
             assert "pagination: { limit: 100000, offset: 0 }" in text
             assert "GetAllUserTaskInstanceState {" not in text
 
+    def test_start_step_accepts_an_enter_of_the_start_node(self, project):
+        audit = next(project.rglob("StepAudit.java")).read_text()
+        assert 'start && "ENTER".equals(' in audit
+
     def test_webpage_denied_outside_dev(self, project):
         props = (project / "src/main/resources/application.properties").read_text()
         assert "%prod.quarkus.http.auth.permission.webpage.policy=deny" in props

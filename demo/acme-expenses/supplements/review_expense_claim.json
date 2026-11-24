@@ -1,0 +1,47 @@
+{
+  "application": {
+    "name": "ACME Expenses",
+    "support": [{"cite": "D01 ¶4", "quote": "The ACME Expenses application lets employees claim business expenses"}]
+  },
+  "process": "ACME Review Expense Claim",
+  "design": {
+    "process": {"id": "expenseReview"},
+    "models": {"ACME Expense Claims": "ExpenseClaim"},
+    "nodes": {
+      "reviewExpenseClaim": {
+        "outputs": ["approved"],
+        "notes": "The output is the decision flag the buttons set (D04 ¶24). EX-2: the manager role is not named, so the task is unassigned.",
+        "support": [{"cite": "D04 ¶24", "quote": "Approve sets `pv!approved = true`"}]
+      },
+      "recordApproval": {
+        "service": {"class": "acme.service.ApprovedClaimStore", "operation": "save"},
+        "inputs": ["claim"], "outputs": ["claim"],
+        "notes": "D03 ¶78. ApprovedClaimStore is a test double for ACME_APPROVED_CLAIMS.",
+        "support": [{"cite": "D03 ¶78", "quote": "An approval is written to the ACME_APPROVED_CLAIMS table"}]
+      },
+      "recordRejection": {
+        "service": {"class": "acme.service.RejectedClaimStore", "operation": "save"},
+        "inputs": ["claim"], "outputs": ["claim"],
+        "notes": "D03 ¶78. RejectedClaimStore is a test double for ACME_REJECTED_CLAIMS.",
+        "support": [{"cite": "D03 ¶78", "quote": "a rejection to the ACME_REJECTED_CLAIMS table"}]
+      }
+    }
+  },
+  "assumptions": [
+    {"id": "EX-2", "text": "The approving manager's role is not documented; the review task is left unassigned."}
+  ],
+  "tests": [
+    {
+      "name": "approve_recordsApproval",
+      "start": {"claim": {"claimId": 7, "employeeName": "Dana Lee"}},
+      "steps": [{"task": "reviewExpenseClaim", "complete": {"approved": true}}],
+      "expect": {"status": "COMPLETED", "saves": {"ApprovedClaimStore": 1, "RejectedClaimStore": 0}}
+    },
+    {
+      "name": "reject_recordsRejection",
+      "start": {"claim": {"claimId": 9, "employeeName": "Sam Ito"}},
+      "steps": [{"task": "reviewExpenseClaim", "complete": {"approved": false}}],
+      "expect": {"status": "COMPLETED", "saves": {"ApprovedClaimStore": 0, "RejectedClaimStore": 1}}
+    }
+  ]
+}

@@ -14,7 +14,8 @@ from pathlib import Path
 
 from .docset import ExtractionError
 
-SUPPLEMENT_KEYS = {"process", "figureTranscriptions", "design", "assumptions", "tests"}
+SUPPLEMENT_KEYS = {"application", "process", "figureTranscriptions", "design", "assumptions", "tests"}
+APPLICATION_KEYS = {"name", "support"}
 TRANSCRIPTION_KEYS = {"cite", "image", "sha256", "inspected", "nodes", "flows"}
 TRANSCRIBED_NODE_KEYS = {"id", "type", "name", "interface", "inputs"}
 TRANSCRIBED_FLOW_KEYS = {"from", "to", "label"}
@@ -136,6 +137,13 @@ def shape_problems(supplement, builtin_types: set[str]) -> list[str]:
         s.bad("process", "is required: the documented process model name")
     else:
         s.text(supplement["process"], "process")
+
+    if "application" in supplement:
+        app = s.obj(supplement["application"], "application", APPLICATION_KEYS, ("name", "support"))
+        if "name" in app:
+            s.text(app["name"], "application.name")
+        if "support" in app:
+            s.support(app["support"], "application.support")
 
     for i, t in enumerate(s.array(supplement.get("figureTranscriptions", []),
                                   "figureTranscriptions")):

@@ -22,7 +22,7 @@ import re
 from dataclasses import dataclass, field
 
 from .docset import DocSet, ExtractionError, cite, cite_all
-from .facts import ProcessFacts, interfaces, process_models, record_types
+from .facts import PROCESS_HEADING_RE, ProcessFacts, interfaces, process_models, record_types
 from .flow_text import camel_case, parse_text_flow
 from .supplement import (CLASS_NAME_RE, PROCESS_ID_RE, TASK_TYPES, is_identifier, is_package,
                          load_supplement, shape_problems)
@@ -224,12 +224,24 @@ class _Builder:
                 claims.append((f"design.nodes.{node_id}", d.get("notes"), d.get("support")))
         for label, text, support in claims:
             self.check_claim(label, text, support)
+        self.check_application()
         for text in _strings(supplement):
             self._resolved(text)
             for m in UNVERIFIABLE_REF_RE.finditer(text):
                 self.note("unverifiable-reference",
                           f"'{m.group(0)}' in the supplement is not a paragraph citation and "
                           "was not checked")
+
+    def check_application(self) -> None:
+        """The application name must be quoted from the documents, like any other claim."""
+        app = self.supplement.get("application")
+        if not isinstance(app, dict) or not isinstance(app.get("name"), str) \
+                or not isinstance(app.get("support"), list):
+            return  # absent, or reported by the shape check
+        self.check_claim("application", None, app["support"])
+        quotes = [e.get("quote") for e in app["support"] if isinstance(e, dict)]
+        if not any(isinstance(q, str) and app["name"] in q for q in quotes):
+            self.problem(f"application: no supporting quote contains the name {app['name']!r}")
 
     # -- flow --------------------------------------------------------------
 
@@ -445,7 +457,8 @@ class _Builder:
                          f"(found: {', '.join(processes) or 'none'})")
             for doc in self.docset.documents:
                 for section in self.docset.sections(doc):
-                    if name.casefold() in section.title.casefold():
+                    if name.casefold() in section.title.casefold() \
+                            and not PROCESS_HEADING_RE.match(section.title):
                         self.problem(
                             f"{cite(doc, section.paragraph_index)} has a heading "
                             f"'{section.title}' that mentions '{name}' but is not shaped "
@@ -928,6 +941,15 @@ class _Builder:
         }
         if template:
             spec["process"]["descriptionTemplate"] = template
+        app = supplement.get("application")
+        if app:
+            spec = {"application": {"name": app["name"],
+                                    "evidence": ", ".join(e["cite"] for e in app["support"])},
+                    **spec}
+        else:
+            self.note("no-application",
+                      f"{name}: the supplement names no application (application.name with a "
+                      "supporting quote), so it cannot be assembled into an application project")
         return SpecResult(spec=spec, diagnostics=self.diagnostics)
 
 
