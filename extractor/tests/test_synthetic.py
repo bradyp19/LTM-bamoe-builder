@@ -345,6 +345,11 @@ class TestApplication:
         with pytest.raises(ExtractionError, match="no supporting quote contains the name"):
             build_spec(docset_with_overview, sup)
 
+    def test_part_of_a_word_is_not_the_name(self, docset_with_overview):
+        sup = with_application(approve_supplement(), name="ME Orders")
+        with pytest.raises(ExtractionError, match="no supporting quote contains the name"):
+            build_spec(docset_with_overview, sup)
+
     def test_quote_must_be_in_the_cited_paragraph(self, docset_with_overview):
         sup = with_application(approve_supplement(), quote="The ACME Orders application ships rockets")
         with pytest.raises(ExtractionError, match="does not contain the quoted support"):

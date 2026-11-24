@@ -240,7 +240,8 @@ class _Builder:
             return  # absent, or reported by the shape check
         self.check_claim("application", None, app["support"])
         quotes = [e.get("quote") for e in app["support"] if isinstance(e, dict)]
-        if not any(isinstance(q, str) and app["name"] in q for q in quotes):
+        whole = re.compile(r"(?<!\w)" + re.escape(app["name"]) + r"(?!\w)")
+        if not any(isinstance(q, str) and whole.search(q) for q in quotes):
             self.problem(f"application: no supporting quote contains the name {app['name']!r}")
 
     # -- flow --------------------------------------------------------------
