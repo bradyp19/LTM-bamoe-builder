@@ -404,3 +404,17 @@ class TestOutOfScopeDocuments:
     def test_supplied_document_is_still_checked(self, docset):
         with pytest.raises(ExtractionError, match="does not contain the quoted support"):
             build_spec(docset, self.cites_d04(), ["D04"])
+
+    def test_renamed_interface_in_a_supplied_document_is_still_refused(self, make_docx, docset):
+        lines = [line.replace("ACME_FRM_Review", "ACME_FRM_Renamed") for line in INTERFACES]
+        f = make_docx("04_Interfaces.docx", lines)
+        with pytest.raises(ExtractionError,
+                           match="reviewOrder: interface 'ACME_FRM_Review' is not documented"):
+            build_spec(DocSet.load(f.parent), approve_supplement(), ["D07"])
+
+    def test_application_name_quoted_only_from_an_omitted_document_is_refused(self, docset):
+        sup = dict(approve_supplement(), application={
+            "name": "ACME Orders",
+            "support": [{"cite": "D01 ¶2", "quote": "The ACME Orders application"}]})
+        with pytest.raises(ExtractionError, match="no supporting quote contains the name"):
+            build_spec(docset, sup, ["D01"])

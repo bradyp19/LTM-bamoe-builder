@@ -164,8 +164,9 @@ class _Builder:
             self.disclosures[kind].append(text)
         self.note(code, text)
 
-    def missing_interface(self, node: str, interface: str, problem: str) -> None:
-        if self.not_supplied:
+    def missing_interface(self, node: str, interface: str, problem: str, ifaces: dict) -> None:
+        """Lenient only when the supplied documents define no interfaces at all."""
+        if self.not_supplied and not ifaces:
             self.note("interface-not-supplied",
                       f"{node}: interface '{interface}' is not in the supplied documents "
                       f"({', '.join(self.not_supplied)} out of scope); task inputs are not derived "
@@ -262,7 +263,15 @@ class _Builder:
                 or not isinstance(app.get("support"), list):
             return  # absent, or reported by the shape check
         self.check_claim("application", None, app["support"])
-        quotes = [e.get("quote") for e in app["support"] if isinstance(e, dict)]
+
+        def checked(e) -> bool:
+            """Only quotes from supplied documents were checked against their paragraph."""
+            if not isinstance(e, dict) or not isinstance(e.get("cite"), str):
+                return False
+            refs = self.docset.find_citations(e["cite"])
+            return len(refs) == 1 and refs[0][0] not in self.not_supplied
+
+        quotes = [e.get("quote") for e in app["support"] if checked(e)]
         # Identifier characters (incl. full-width) only: Japanese prose has no spaces around a name.
         edge = "[A-Za-z0-9_\uff10-\uff19\uff21-\uff3a\uff41-\uff5a]"
         whole = re.compile(f"(?<!{edge})" + re.escape(app["name"]) + f"(?!{edge})")
@@ -303,7 +312,7 @@ class _Builder:
                 self.missing_interface(
                     n["id"], n["interface"],
                     f"{ref}: transcribed node '{n['id']}' names interface "
-                    f"'{n['interface']}', which the documents do not define")
+                    f"'{n['interface']}', which the documents do not define", ifaces)
             nodes.append(_Node(id=n["id"], type=n["type"], name=n["name"],
                                interface=n.get("interface"), inputs=n.get("inputs"),
                                transcribed=True))
@@ -674,7 +683,7 @@ class _Builder:
                     self.missing_interface(
                         n.id, n.interface,
                         f"{n.id}: interface '{n.interface}' is not documented; "
-                        "task inputs cannot be derived")
+                        "task inputs cannot be derived", ifaces)
                 if n.source_cite:
                     parts.append(f"Flow: {n.source_cite}.")
                 rule_inputs = [r.name for r in iface.rule_inputs if r.name in var_names] \
