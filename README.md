@@ -81,7 +81,12 @@ first.** Use a new directory; never point it at a hand-edited project.
   At the end it checks the recorded status, the end event and which service
   tasks ran. The record of every step is written to `logs/<processId>-audit.json`.
 - `src/main/resources/META-INF/resources/ui/`: a webpage at
-  `http://localhost:8080/ui/` in dev mode. It is generated from the specs
+  `http://localhost:8080/ui/` under the dev profile. Run the packaged app:
+  `mvn -Pdevelopment -Dquarkus.profile=dev -DskipTests clean package`, then
+  `java -Dquarkus.profile=dev -Dquarkus.http.host=127.0.0.1 -jar target/quarkus-app/quarkus-run.jar`.
+  `mvn quarkus:dev` fails once an instance holds a list of records
+  (`ClassNotFoundException` for the model class: Kogito deserializes the list
+  with a class loader that cannot see dev mode's application classes). It is generated from the specs
   (`application.json`): start forms from each process's start variables, a
   task inbox across processes with forms from the user tasks' inputs and
   outputs, the spec's scenarios as prefills, and per instance the status, node

@@ -173,7 +173,11 @@ Services in `service/` are **test doubles**, not production persistence.
 
 - Build and test: `mvn -Pdevelopment -Dquarkus.test.profile=dev clean package`
   (each test writes its step audit to `logs/<processId>-audit.json`)
-- Dev run with the user webpage at http://localhost:8080/ui/ : `mvn -Pdevelopment quarkus:dev`
+- Run with the user webpage at http://localhost:8080/ui/ (dev profile, packaged app):
+  `mvn -Pdevelopment -Dquarkus.profile=dev -DskipTests clean package`, then
+  `java -Dquarkus.profile=dev -Dquarkus.http.host=127.0.0.1 -jar target/quarkus-app/quarkus-run.jar`.
+  Not `quarkus:dev` when a process has list variables: in dev mode Kogito cannot
+  deserialize the list elements (ClassNotFoundException for the model class).
 
 The webpage is served only in the `%dev` profile, where authentication is off.
 """
@@ -215,6 +219,10 @@ def emit_application(specs: list[dict], skeleton_dir: Path, out_dir: Path) -> li
         props += ("\n# Generated: process variables hold lists of model classes, which are "
                   "Java-serialized;\n# a flat test classpath lets deserialization find them.\n"
                   "quarkus.test.flat-class-path=true\n")
+    props += ("\n# Generated: keep idle %dev H2 connections. H2 2.3 evaluates CHECK constraints\n"
+              "# through the session that created them (the Flyway connection); once the pool\n"
+              "# drops it as idle, every audit insert fails with \"database has been closed\".\n"
+              "%dev.quarkus.datasource.jdbc.idle-removal-interval=0S\n")
     props += ("\n# Generated: the user webpage (META-INF/resources/ui) calls the unauthenticated\n"
               "# %dev endpoints; it is denied outside %dev until it supports OIDC.\n"
               "%prod.quarkus.http.auth.permission.webpage.paths=/ui,/ui/*\n"

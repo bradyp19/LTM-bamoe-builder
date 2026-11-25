@@ -36,12 +36,15 @@ async function api(method, path, body) {
 
 // ---- data-audit (what the running service recorded for an instance) ----
 
+// Without pagination the audit queries return only the newest 10 rows.
+const ALL_ROWS = "pagination: { limit: 100000, offset: 0 }";
+
 async function audit(id) {
-  const q = `{ nodes: GetAllProcessInstancesNodeByProcessInstanceId(processInstanceId: "${id}") { eventId eventType nodeType nodeName eventDate }
-    variables: GetAllProcessInstancesVariableByProcessInstanceId(processInstanceId: "${id}") { variableName variableValue eventDate }
-    history: GetAllProcessInstancesVariableHistoryByProcessInstanceId(processInstanceId: "${id}") { variableName logs { variableValue eventDate } }
-    states: GetProcessInstancesStateHistory(processInstanceId: "${id}") { eventType eventDate }
-    tasks: GetAllUserTaskInstanceState { processInstanceId userTaskInstanceId name state eventType eventDate } }`;
+  const q = `{ nodes: GetAllProcessInstancesNodeByProcessInstanceId(processInstanceId: "${id}", ${ALL_ROWS}) { eventId eventType nodeType nodeName eventDate }
+    variables: GetAllProcessInstancesVariableByProcessInstanceId(processInstanceId: "${id}", ${ALL_ROWS}) { variableName variableValue eventDate }
+    history: GetAllProcessInstancesVariableHistoryByProcessInstanceId(processInstanceId: "${id}", ${ALL_ROWS}) { variableName logs { variableValue eventDate } }
+    states: GetProcessInstancesStateHistory(processInstanceId: "${id}", ${ALL_ROWS}) { eventType eventDate }
+    tasks: GetAllUserTaskInstanceState(${ALL_ROWS}) { processInstanceId userTaskInstanceId name state eventType eventDate } }`;
   const r = await api("POST", "/data-audit/q", { query: q });
   if (r.errors) throw new Error("data-audit: " + JSON.stringify(r.errors));
   const d = r.data;
@@ -56,9 +59,21 @@ async function audit(id) {
   };
 }
 
+// The audit records java.time values as arrays: LocalDate 2027-01-31 -> [2027,1,31].
+function temporalParts(text) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?)?$/.exec(text);
+  if (!m) return null;
+  const nanos = m[7] ? Number(m[7].padEnd(9, "0")) : 0;
+  return [m[1], m[2], m[3], m[4], m[5], m[6]].map((x) => Number(x || 0)).concat(nanos);
+}
+
 // Sent values are partial (unset fields are not sent); recorded records carry every field.
 function sameValue(sent, recorded) {
   if (sent === null || sent === undefined) return recorded === null || recorded === undefined;
+  if (typeof sent === "string" && Array.isArray(recorded) && temporalParts(sent)) {
+    const want = temporalParts(sent);
+    return recorded.length <= 7 && want.every((x, i) => x === Number(recorded[i] || 0));
+  }
   if (Array.isArray(sent)) {
     return Array.isArray(recorded) && sent.length === recorded.length &&
       sent.every((s, i) => sameValue(s, recorded[i]));
@@ -73,18 +88,23 @@ function sameValue(sent, recorded) {
 
 // After every action: read the record back and compare it with what was sent.
 async function checkStep(proc, id, action, nodeName, sent, before) {
+  // Events of one step can be stored in more than one write; wait (up to ~5 s)
+  // until the step's node has been left before judging the record.
+  const seen = new Set(before.nodes.map((n) => n.eventId));
+  // Started over REST, BAMOE 9.6 records only ENTER for the start node; a task must be left (EXIT).
+  const wanted = action === "start" ? ["ENTER", "EXIT"] : ["EXIT"];
+  const exited = (nodes) => nodes.some((n) => !seen.has(n.eventId) && wanted.includes(n.eventType) && n.nodeName === nodeName);
   let after = null;
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 17; i++) {
     after = await audit(id);
-    if (after.nodes.length > before.nodes.length) break;
+    if (exited(after.nodes)) break;
     await new Promise((res) => setTimeout(res, 300));
   }
-  const seen = new Set(before.nodes.map((n) => n.eventId));
   const added = after.nodes.filter((n) => !seen.has(n.eventId));
   const problems = [];
   if (!added.length) problems.push("nothing was recorded for this step");
-  if (!added.some((n) => n.eventType === "EXIT" && n.nodeName === nodeName)) {
-    problems.push(`node history has no exit of '${nodeName}'`);
+  if (!exited(after.nodes)) {
+    problems.push(`node history has no ${action === "start" ? "record" : "exit"} of '${nodeName}'`);
   }
   for (const [k, v] of Object.entries(sent)) {
     if (!(k in after.variables)) problems.push(`variable '${k}' was sent but nothing was recorded`);
@@ -263,9 +283,13 @@ function renderStart() {
   }
 }
 
+// Overlapping refreshes (tab click + Refresh) must not append to the same table.
+let inboxRun = 0;
+let instancesRun = 0;
+
 async function renderInbox() {
-  const body = $("#inbox tbody");
-  body.replaceChildren();
+  const run = ++inboxRun;
+  const body = document.createElement("tbody");
   for (const p of APP.processes) {
     if (!p.userTasks.length) continue;
     const instances = await api("GET", p.endpoint);
@@ -281,6 +305,7 @@ async function renderInbox() {
     }
   }
   if (!body.children.length) body.append(el("tr", {}, el("td", { colspan: 5 }, "No open user tasks.")));
+  if (run === inboxRun) $("#inbox tbody").replaceChildren(...body.children);
 }
 
 function openTask(p, instanceId, spec, task) {
@@ -311,15 +336,28 @@ function openTask(p, instanceId, spec, task) {
 }
 
 async function renderInstances() {
-  const body = $("#instances tbody");
-  body.replaceChildren();
+  const run = ++instancesRun;
+  const body = document.createElement("tbody");
   for (const p of APP.processes) {
-    const q = `{ GetAllProcessInstancesStateByProcessId(processId: "${p.id}") { processInstanceId eventType eventDate } }`;
+    const q = `{ GetAllProcessInstancesStateByProcessId(processId: "${p.id}", ${ALL_ROWS}) { processInstanceId eventType eventDate } }`;
     const r = await api("POST", "/data-audit/q", { query: q });
+    // This query keeps one row per instance, and BAMOE can store an ACTIVE event 1 ms after
+    // COMPLETED, so the row may say ACTIVE for a finished instance: resolve the status from
+    // each instance's state history, where a terminal event wins (as in the detail view).
+    const ids = [...new Set(r.data.GetAllProcessInstancesStateByProcessId.map((s) => s.processInstanceId))];
     const latest = new Map();
-    for (const s of r.data.GetAllProcessInstancesStateByProcessId) {
-      const prev = latest.get(s.processInstanceId);
-      if (!prev || s.eventDate > prev.eventDate) latest.set(s.processInstanceId, s);
+    // Batches keep each query under the GraphQL token limit (about 680 aliases).
+    for (let from = 0; from < ids.length; from += 200) {
+      const batch = ids.slice(from, from + 200);
+      const hq = "{ " + batch.map((id, i) =>
+        `i${i}: GetProcessInstancesStateHistory(processInstanceId: "${id}", ${ALL_ROWS}) { eventType eventDate }`).join(" ") + " }";
+      const h = await api("POST", "/data-audit/q", { query: hq });
+      batch.forEach((id, i) => {
+        const states = h.data[`i${i}`] || [];
+        const newest = states.reduce((a, b) => (!a || b.eventDate > a.eventDate ? b : a), null);
+        const s = states.find((e) => TERMINAL.includes(e.eventType)) || newest;
+        if (s) latest.set(id, { processInstanceId: id, eventType: s.eventType, eventDate: s.eventDate });
+      });
     }
     for (const s of latest.values()) {
       body.append(el("tr", { "data-instance": s.processInstanceId },
@@ -327,6 +365,7 @@ async function renderInstances() {
         el("td", {}, el("button", { onclick: () => showInstance(p, s.processInstanceId) }, "View"))));
     }
   }
+  if (run === instancesRun) $("#instances tbody").replaceChildren(...body.children);
 }
 
 async function showInstance(p, id) {
