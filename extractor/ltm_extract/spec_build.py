@@ -140,9 +140,11 @@ def _quoted(labels: list[str | None]) -> str:
 
 
 class _Builder:
-    def __init__(self, docset: DocSet, supplement):
+    def __init__(self, docset: DocSet, supplement, out_of_scope=()):
         self.docset = docset
         self.supplement = supplement
+        # documents the run declares out of scope and that were not supplied
+        self.not_supplied = sorted(d for d in out_of_scope if d not in docset.documents)
         self.problems: list[str] = []
         self.diagnostics: list[Diagnostic] = []
         # generated T-n items, in this order
@@ -162,6 +164,15 @@ class _Builder:
             self.disclosures[kind].append(text)
         self.note(code, text)
 
+    def missing_interface(self, node: str, interface: str, problem: str) -> None:
+        if self.not_supplied:
+            self.note("interface-not-supplied",
+                      f"{node}: interface '{interface}' is not in the supplied documents "
+                      f"({', '.join(self.not_supplied)} out of scope); task inputs are not derived "
+                      "from its rule inputs")
+        else:
+            self.problem(problem)
+
     def fail_if_problems(self) -> None:
         if self.problems:
             raise ExtractionError(self.problems)
@@ -174,10 +185,20 @@ class _Builder:
 
     # -- citations ---------------------------------------------------------
 
+    def _not_supplied(self, doc) -> bool:
+        """Citations into an out-of-scope document that was not supplied are disclosed, not checked."""
+        if doc not in self.not_supplied:
+            return False
+        self.note("out-of-scope-citation",
+                  f"{doc} is out of scope and was not supplied; citations into it are not checked")
+        return True
+
     def _resolved(self, text: str) -> list[tuple[str, int, int]]:
         """The citations in the text that resolve; the others become problems."""
         out = []
         for ref in self.docset.find_citations(text):
+            if self._not_supplied(ref[0]):
+                continue
             why = self.docset.check_citation(*ref)
             if why:
                 self.problem(f"citation does not resolve: {why}")
@@ -196,6 +217,8 @@ class _Builder:
             refs = self.docset.find_citations(entry["cite"])
             if len(refs) != 1:
                 self.problem(f"{label}: support cite {entry['cite']!r} must be one citation")
+                continue
+            if self._not_supplied(refs[0][0]):
                 continue
             if self.docset.check_citation(*refs[0]):
                 self._resolved(entry["cite"])
@@ -277,8 +300,10 @@ class _Builder:
         nodes = []
         for n in t.get("nodes", []):
             if n.get("interface") and n["interface"] not in ifaces:
-                self.problem(f"{ref}: transcribed node '{n['id']}' names interface "
-                             f"'{n['interface']}', which the documents do not define")
+                self.missing_interface(
+                    n["id"], n["interface"],
+                    f"{ref}: transcribed node '{n['id']}' names interface "
+                    f"'{n['interface']}', which the documents do not define")
             nodes.append(_Node(id=n["id"], type=n["type"], name=n["name"],
                                interface=n.get("interface"), inputs=n.get("inputs"),
                                transcribed=True))
@@ -646,8 +671,10 @@ class _Builder:
                         interface_cites.append(iface.anchor.cite())
                 elif n.interface:
                     parts.append(f"Interface: {n.interface}.")
-                    self.problem(f"{n.id}: interface '{n.interface}' is not documented; "
-                                 "task inputs cannot be derived")
+                    self.missing_interface(
+                        n.id, n.interface,
+                        f"{n.id}: interface '{n.interface}' is not documented; "
+                        "task inputs cannot be derived")
                 if n.source_cite:
                     parts.append(f"Flow: {n.source_cite}.")
                 rule_inputs = [r.name for r in iface.rule_inputs if r.name in var_names] \
@@ -956,9 +983,12 @@ class _Builder:
         return SpecResult(spec=spec, diagnostics=self.diagnostics)
 
 
-def build_spec(docset: DocSet, supplement: dict) -> SpecResult:
+def build_spec(docset: DocSet, supplement: dict, out_of_scope=()) -> SpecResult:
     """Build the generator spec for the process the supplement names.
+
+    out_of_scope names documents (e.g. "D04") the run does not need: when one
+    is not supplied, citations into it are disclosed instead of checked.
 
     Raises ExtractionError listing the problems if anything would have to be
     invented."""
-    return _Builder(docset, supplement).build()
+    return _Builder(docset, supplement, out_of_scope).build()

@@ -1,6 +1,7 @@
 """Demo runner: LTM documents -> one BAMOE application project -> one Maven run.
 
-    python tools/run_ltm_demo.py --docs DIR --out DIR [--skip-maven] [--mvn mvn]
+    python tools/run_ltm_demo.py --docs DIR --out DIR [--out-of-scope D04,D07]
+        [--skip-maven] [--mvn mvn]
 
 Every supplement in extractor/supplements/ is extracted against the documents,
 the specs are generated into one project (projects/<artifactId>/), Maven is run
@@ -15,6 +16,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -48,8 +50,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--skeleton", type=Path, default=SKELETON, help="BAMOE build skeleton")
     parser.add_argument("--mvn", default="mvn", help="Maven executable")
     parser.add_argument("--skip-maven", action="store_true", help="generate only; build not run")
+    parser.add_argument("--out-of-scope", default="", metavar="D04,D07",
+                        help="documents this run does not need; if one is not supplied, "
+                             "citations into it are reported instead of checked")
     args = parser.parse_args(argv)
     problems = []
+    args.out_of_scope = [d.strip() for d in args.out_of_scope.split(",") if d.strip()]
+    bad = [d for d in args.out_of_scope if not re.fullmatch(r"D\d\d", d)]
+    if bad:
+        problems.append(f"--out-of-scope {', '.join(bad)}: name documents as D01, D02, ...")
     if not args.docs.is_dir():
         problems.append(f"--docs {args.docs} is not a folder")
     elif not source_files(args.docs):
@@ -98,7 +107,8 @@ def _total(results: dict[str, dict]) -> dict:
 
 def build_manifest(*, specs: list[dict], supplements: list[Path], diagnostics: list[list],
                    project: Path, out: Path, build: dict, results: dict[str, dict],
-                   before: dict[str, str], after: dict[str, str]) -> dict:
+                   before: dict[str, str], after: dict[str, str],
+                   out_of_scope: list[str] = ()) -> dict:
     app = specs[0]["application"]
     processes = []
     for spec, supplement, diags in zip(specs, supplements, diagnostics):
@@ -128,6 +138,7 @@ def build_manifest(*, specs: list[dict], supplements: list[Path], diagnostics: l
         },
         "processes": processes,
         "sources": [{"file": f, "sha256": h} for f, h in before.items()],
+        "outOfScope": list(out_of_scope),
         "sourcesUnchanged": before == after,
     }
 
@@ -140,7 +151,7 @@ def run(args: argparse.Namespace) -> int:
     specs, diagnostics, problems = [], [], []
     for sup in supplements:
         try:
-            result = build_spec(docset, load_supplement(sup))
+            result = build_spec(docset, load_supplement(sup), args.out_of_scope)
         except ExtractionError as e:
             problems += [f"{sup.name}: {p}" for p in e.problems]
             continue
@@ -181,7 +192,8 @@ def run(args: argparse.Namespace) -> int:
 
     manifest = build_manifest(specs=specs, supplements=supplements, diagnostics=diagnostics,
                               project=project, out=out, build=build, results=results,
-                              before=before, after=sha256(args.docs))
+                              before=before, after=sha256(args.docs),
+                              out_of_scope=args.out_of_scope)
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
                                        encoding="utf-8")
     tests = manifest["application"]["build"]["tests"]

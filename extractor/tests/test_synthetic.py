@@ -378,3 +378,29 @@ class TestApplication:
         sup = dict(approve_supplement(), application={"name": "ACME Orders"})
         with pytest.raises(ExtractionError, match="application.support"):
             build_spec(docset_with_overview, sup)
+
+
+class TestOutOfScopeDocuments:
+    @pytest.fixture
+    def docset_without_interfaces(self, make_docx):
+        make_docx("03_Workflow.docx", WORKFLOW, image_bytes=IMAGE_BYTES)
+        return DocSet.load(make_docx("05_Data.docx", DATA).parent)
+
+    def cites_d04(self):
+        sup = approve_supplement()
+        sup["assumptions"] = [{"id": "A1", "text": "The form saves the order (D04 ¶6).",
+                               "support": [{"cite": "D04 ¶6", "quote": "anything"}]}]
+        return sup
+
+    def test_missing_document_is_refused_unless_out_of_scope(self, docset_without_interfaces):
+        with pytest.raises(ExtractionError, match="no document D04"):
+            build_spec(docset_without_interfaces, self.cites_d04())
+        result = build_spec(docset_without_interfaces, self.cites_d04(), ["D04"])
+        codes = [d.code for d in result.diagnostics]
+        assert "out-of-scope-citation" in codes and "interface-not-supplied" in codes
+        task = next(n for n in result.spec["nodes"] if n["id"] == "reviewOrder")
+        assert task["inputs"] == []
+
+    def test_supplied_document_is_still_checked(self, docset):
+        with pytest.raises(ExtractionError, match="does not contain the quoted support"):
+            build_spec(docset, self.cites_d04(), ["D04"])

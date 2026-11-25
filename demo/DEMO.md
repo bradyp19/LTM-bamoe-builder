@@ -6,11 +6,20 @@ Prerequisites: Java 21, Maven 3.9.11+ with the BAMOE 9.6 repository
 
 ## 1. NSSOL from its documents
 
+D04 (UI Interfaces) and D07 are out of scope, so the run needs only D01, D02, D03, D05
+and D06:
+
 ```
-python3 tools/run_ltm_demo.py --docs <folder with 01_..07_*.docx> --out /tmp/nssol-run
+python3 tools/run_ltm_demo.py --docs <folder with 01_,02_,03_,05_,06_*.docx> \
+  --out-of-scope D04,D07 --out /tmp/nssol-run
 ```
 
-Expect `NSSOL POC: 3 processes ...; build pass, 8 tests, 0 failed`. The manifest is at
+Expect `NSSOL POC: 3 processes ...; build pass, 8 tests, 0 failed`. Without
+`--out-of-scope` the run refuses, naming every supplement citation into D04 and D07.
+With it, those citations are listed as `out-of-scope-citation` instead of checked
+(if D04 or D07 is supplied anyway, it is still checked). Interfaces live in D04, so
+Allocations' two screens get no task inputs from rule inputs
+(`interface-not-supplied`); the 8 scenarios do not depend on them. The manifest is at
 `/tmp/nssol-run/manifest.json`, and each process's per-step audit is in
 `/tmp/nssol-run/projects/<artifact>/logs/`.
 
