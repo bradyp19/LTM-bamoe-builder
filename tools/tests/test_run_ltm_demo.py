@@ -54,6 +54,12 @@ class TestArguments:
                                "--supplements", str(tmp_path), "--mvn", "no-such-mvn"])
         assert all(s in str(e.value) for s in ("not a folder", "no supplement JSON", "not found"))
 
+    def test_out_of_scope_documents(self, docs, tmp_path):
+        args = runner.parse_args(_args(docs, tmp_path / "out", "--out-of-scope", "D04, D07"))
+        assert args.out_of_scope == ["D04", "D07"]
+        with pytest.raises(runner.UsageError, match="--out-of-scope 04_UI"):
+            runner.parse_args(_args(docs, tmp_path / "o2", "--out-of-scope", "04_UI"))
+
     def test_main_returns_usage_code(self, tmp_path, capsys):
         assert runner.main(["--docs", str(tmp_path / "nope"), "--out", str(tmp_path / "o")]) == 2
         assert "run_ltm_demo:" in capsys.readouterr().err
@@ -110,6 +116,7 @@ class TestManifest:
         assert reg["tests"]["failed"] == [{"test": "b", "kind": "failure", "message": "step broke"}]
         assert reg["audit"] is None
         assert m["sourcesUnchanged"] is True
+        assert m["outOfScope"] == []
 
     def test_changed_source_is_visible(self, setup):
         specs, sups, project, out, _ = setup
