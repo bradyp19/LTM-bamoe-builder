@@ -1,0 +1,42 @@
+{
+  "application": {
+    "name": "ACME Expenses",
+    "support": [{"cite": "D01 ¶4", "quote": "The ACME Expenses application lets employees claim business expenses"}]
+  },
+  "process": "ACME Submit Expense Claim",
+  "design": {
+    "models": {"ACME Expense Claims": "ExpenseClaim"},
+    "nodes": {
+      "fillExpenseClaim": {
+        "outputs": ["claim", "isSubmit"],
+        "notes": "Outputs are the form's write-backs (D04 ¶11). EX-1: no assignee is documented, so the task is unassigned.",
+        "support": [{"cite": "D04 ¶11", "quote": "Submit saves the form into `pv!claim` and sets `pv!isSubmit = true`"}]
+      },
+      "saveExpenseClaim": {
+        "service": {"class": "acme.service.ExpenseClaimStore", "operation": "save"},
+        "inputs": ["claim"], "outputs": ["claim"],
+        "notes": "Writes the claim (D03 ¶35). ExpenseClaimStore is a test double for the ACME_EXPENSE_CLAIMS table.",
+        "support": [{"cite": "D03 ¶35", "quote": "Submit writes the claim to the ACME_EXPENSE_CLAIMS table."}]
+      }
+    }
+  },
+  "assumptions": [
+    {"id": "EX-1", "text": "No task assignee or candidate group is documented; user tasks are left unassigned."}
+  ],
+  "tests": [
+    {
+      "name": "submit_savesClaim",
+      "start": {"claim": {"claimId": 7, "employeeName": "Dana Lee"}},
+      "steps": [{"task": "fillExpenseClaim",
+                 "complete": {"isSubmit": true,
+                              "claim": {"claimId": 7, "employeeName": "Dana Lee", "description": "Team lunch"}}}],
+      "expect": {"status": "COMPLETED", "saves": {"ExpenseClaimStore": 1}}
+    },
+    {
+      "name": "cancel_writesNothing",
+      "start": {"claim": {"claimId": 8, "employeeName": "Dana Lee"}},
+      "steps": [{"task": "fillExpenseClaim", "complete": {"isSubmit": false}}],
+      "expect": {"status": "COMPLETED", "saves": {"ExpenseClaimStore": 0}}
+    }
+  ]
+}

@@ -102,8 +102,12 @@ public final class StepAudit {
         if (added.isEmpty()) {
             problems.add("nothing was recorded for this step");
         }
-        if (added.stream().noneMatch(n -> "EXIT".equals(n.path("eventType").asText()) && node.equals(n.path("nodeName").asText()))) {
-            problems.add("node history has no exit of '" + node + "' for this step");
+        // BAMOE 9.6 does not always record EXIT for the start node; a task must be left (EXIT).
+        boolean start = "start".equals(step);
+        if (added.stream().noneMatch(n -> node.equals(n.path("nodeName").asText())
+                && ("EXIT".equals(n.path("eventType").asText())
+                    || start && "ENTER".equals(n.path("eventType").asText())))) {
+            problems.add("node history has no " + (start ? "record" : "exit") + " of '" + node + "' for this step");
         }
         ObjectNode sentTree = mapper.createObjectNode();
         sent.forEach((k, v) -> sentTree.set(k, mapper.valueToTree(v)));

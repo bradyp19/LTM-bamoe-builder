@@ -310,3 +310,71 @@ class TestHeadingNearMisses:
         with pytest.raises(ExtractionError) as exc:
             build_spec(ds, approve_supplement())
         assert len(exc.value.problems) == 1
+
+
+OVERVIEW = ["# Application Overview", "", "The ACME Orders application handles order approval and shipping."]
+
+
+@pytest.fixture
+def docset_with_overview(make_docx):
+    make_docx("01_Overview.docx", OVERVIEW)
+    make_docx("03_Workflow.docx", WORKFLOW, image_bytes=IMAGE_BYTES)
+    make_docx("04_Interfaces.docx", INTERFACES)
+    f = make_docx("05_Data.docx", DATA)
+    return DocSet.load(f.parent)
+
+
+def with_application(supplement, name="ACME Orders",
+                     quote="The ACME Orders application handles order approval"):
+    return dict(supplement, application={"name": name,
+                                         "support": [{"cite": "D01 ¶2", "quote": quote}]})
+
+
+class TestApplication:
+    def test_name_and_evidence_from_the_quote(self, docset_with_overview):
+        spec = build_spec(docset_with_overview, with_application(approve_supplement())).spec
+        assert spec["application"] == {"name": "ACME Orders", "evidence": "D01 ¶2"}
+
+    def test_without_application_is_a_diagnostic(self, docset_with_overview):
+        result = build_spec(docset_with_overview, approve_supplement())
+        assert "application" not in result.spec
+        assert any(d.code == "no-application" for d in result.diagnostics)
+
+    def test_quote_must_contain_the_name(self, docset_with_overview):
+        sup = with_application(approve_supplement(), name="ACME Shop")
+        with pytest.raises(ExtractionError, match="no supporting quote contains the name"):
+            build_spec(docset_with_overview, sup)
+
+    def test_part_of_a_word_is_not_the_name(self, docset_with_overview):
+        sup = with_application(approve_supplement(), name="ME Orders")
+        with pytest.raises(ExtractionError, match="no supporting quote contains the name"):
+            build_spec(docset_with_overview, sup)
+
+    @pytest.mark.parametrize("quote", ["The ACME Orders_Internal application handles",
+                                       "The ACME Orders\uff12 application handles"])
+    def test_longer_identifier_is_not_the_name(self, make_docx, quote):
+        make_docx("01_Overview.docx", ["# Application Overview", "", quote + " orders."])
+        make_docx("03_Workflow.docx", WORKFLOW, image_bytes=IMAGE_BYTES)
+        make_docx("04_Interfaces.docx", INTERFACES)
+        docset = DocSet.load(make_docx("05_Data.docx", DATA).parent)
+        sup = with_application(approve_supplement(), quote=quote)
+        with pytest.raises(ExtractionError, match="no supporting quote contains the name"):
+            build_spec(docset, sup)
+
+    def test_name_followed_by_japanese(self, make_docx):
+        make_docx("01_Overview.docx", ["# 概要", "", "ACME Ordersは注文を承認するアプリケーションです。"])
+        make_docx("03_Workflow.docx", WORKFLOW, image_bytes=IMAGE_BYTES)
+        make_docx("04_Interfaces.docx", INTERFACES)
+        docset = DocSet.load(make_docx("05_Data.docx", DATA).parent)
+        sup = with_application(approve_supplement(), quote="ACME Ordersは注文を承認する")
+        assert build_spec(docset, sup).spec["application"]["name"] == "ACME Orders"
+
+    def test_quote_must_be_in_the_cited_paragraph(self, docset_with_overview):
+        sup = with_application(approve_supplement(), quote="The ACME Orders application ships rockets")
+        with pytest.raises(ExtractionError, match="does not contain the quoted support"):
+            build_spec(docset_with_overview, sup)
+
+    def test_support_is_required(self, docset_with_overview):
+        sup = dict(approve_supplement(), application={"name": "ACME Orders"})
+        with pytest.raises(ExtractionError, match="application.support"):
+            build_spec(docset_with_overview, sup)

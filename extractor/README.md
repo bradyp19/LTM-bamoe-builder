@@ -19,6 +19,7 @@ problems before stopping.
 
 | Spec content | Source |
 |---|---|
+| Application name and evidence | `application` in the supplement: the name plus a quote from the documents that contains it |
 | Process name, id, package | Process model heading (`design.process` may override id/package) |
 | Variables, types, `required`, per-row evidence | Process Variables tables |
 | Models and fields | Record Type field tables, in document order |
