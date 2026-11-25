@@ -1,4 +1,10 @@
 {
+  "application": {
+    "name": "NSSOL POC",
+    "support": [
+      {"cite": "D01 ¶8", "quote": "Application Name | NSSOL POC"}
+    ]
+  },
   "process": "NSSOL Register Project",
   "figureTranscriptions": [
     {

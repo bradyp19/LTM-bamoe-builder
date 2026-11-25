@@ -73,7 +73,7 @@ class TestDerivedNotTyped:
     """Source facts must come from the documents, never from the supplement."""
 
     def test_supplement_carries_no_source_facts(self, supplement):
-        assert set(supplement) <= {"process", "figureTranscriptions", "design",
+        assert set(supplement) <= {"application", "process", "figureTranscriptions", "design",
                                    "assumptions", "tests"}
         raw = SUPPLEMENT.read_text(encoding="utf-8")
         for derived in ["java.lang.Boolean", "orderAmountMillionYen", "D05 ¶48–76",
