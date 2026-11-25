@@ -69,6 +69,10 @@ class TestOneProject:
             assert "pagination: { limit: 100000, offset: 0 }" in text
             assert "GetAllUserTaskInstanceState {" not in text
 
+    def test_start_step_accepts_an_enter_of_the_start_node(self, project):
+        audit = next(project.rglob("StepAudit.java")).read_text()
+        assert 'start && "ENTER".equals(' in audit
+
     def test_webpage_denied_outside_dev(self, project):
         props = (project / "src/main/resources/application.properties").read_text()
         assert "%prod.quarkus.http.auth.permission.webpage.policy=deny" in props
@@ -132,6 +136,16 @@ class TestCollisions:
         node["service"]["class"] = "nssol.service.ProjectStore"
         problems = _problems(specs, tmp_path)
         assert any("service class ProjectStore has different signatures" in p for p in problems)
+
+    def test_application_name_is_escaped_in_the_pom(self, tmp_path):
+        specs = _specs()
+        for s in specs:
+            s["application"] = {"name": "ACME Travel & Expenses <EU>", "evidence": "D01 ¶1"}
+        emit_application(specs, SKELETON, tmp_path / "out")
+        import xml.etree.ElementTree as ET
+        ns = {"m": "http://maven.apache.org/POM/4.0.0"}
+        root = ET.parse(tmp_path / "out" / "pom.xml").getroot()
+        assert root.find("m:name", ns).text == "ACME Travel & Expenses <EU>"
 
     def test_different_applications(self, tmp_path):
         specs = _specs()
